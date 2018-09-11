@@ -80,15 +80,22 @@ var retry = false,
     myIP = null;
 var arpping = {
     findMyInfo: function(callback) {
-        exec('ifconfig', (err, stdout, stderr) => {
+        exec('ifconfig -a', (err, stdout, stderr) => {
             if (err) {
                 console.log(err);
                 return callback(err);
             }
-            var en0 = stdout.slice(stdout.indexOf('en0'), stdout.indexOf('en1')).split('\n\t');
-            if (en0[4].indexOf('status: inactive') > -1) return callback(new Error('No wifi connection'));
-            var ip = en0[3].split(' ')[1];
-            var mac = en0[1].split(' ')[1];
+            if (stdout.indexOf("wlan0: ") > -1) {
+                var wlan0 = stdout.split("wlan0")[1].split('\n\t');
+                var ip = wlan0[1].split(' ')[1];
+                var mac = wlan0[3].split(' ')[1];
+            }
+            else {
+                var en0 = stdout.slice(stdout.indexOf('en0'), stdout.indexOf('en1')).split('\n\t');
+                if (en0[4].indexOf('status: inactive') > -1) return callback(new Error('No wifi connection'));
+                var ip = en0[3].split(' ')[1];
+                var mac = en0[1].split(' ')[1];
+            }
 
             myIP = ip;
             callback(null, {ip: ip, mac: mac});
