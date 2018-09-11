@@ -20,6 +20,10 @@
     "mac",
     "scan"
   ],
+  "repository": {
+    "type" : "git",
+    "url" : "https://github.com/haf-decent/arpping.git"
+  },
   "author": "Ryan Hafner <r.hafner20@gmail.com>",
   "license": "ISC"
 }
