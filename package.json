@@ -4,11 +4,13 @@
   "description": "Discover and search for internet-connected devices (locally) using ping and arp",
   "main": "index.js",
   "dependencies": {
-    "npm": "^6.4.1"
+    "child_process": "^1.0.2",
+    "npm": "^6.4.1",
+    "os": "^0.1.1"
   },
   "devDependencies": {},
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node test.js example"
   },
   "keywords": [
     "ping",
