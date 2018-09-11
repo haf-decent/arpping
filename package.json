@@ -1,0 +1,23 @@
+{
+  "name": "arpping",
+  "version": "0.1.0",
+  "description": "Discover and search for internet-connected devices (locally) using ping and arp",
+  "main": "index.js",
+  "dependencies": {
+    "npm": "^6.4.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "ping",
+    "arp",
+    "nmap",
+    "ip",
+    "mac",
+    "scan"
+  ],
+  "author": "Ryan Hafner <r.hafner20@gmail.com>",
+  "license": "ISC"
+}
