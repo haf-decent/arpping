@@ -22,7 +22,7 @@ To include in a project file:
 var arpping = require('arpping')();
 ```
 
-The arpping module returns a function that accepts one argument, namely a timeout for ping scans. If passed no timeout parameter, arrpping will default to 10s (which in my experience has been more than enough time)
+The arpping module returns a function that accepts one argument, namely a timeout for ping scans. If passed no timeout parameter, arpping will default to 10s (which in my experience has been more than enough time)
 
 ### Methods
 The arpping object has the following methods (each with the appropraitely structured callback function):
@@ -119,7 +119,7 @@ var macArray = [
   "01:01:01:99:99:99",
   "7f:54:12"
 ];
-arpping.search.byIpAddress(macArray, (err, found, missing) => {
+arpping.search.byMacAddress(macArray, (err, found, missing) => {
   if (err) return console.log(err);
   var f = found.length, m = missing.length;
   console.log(f + ' matching host(s) found:');
@@ -163,8 +163,8 @@ arpping.search.byMacType(type, (err, found) => {
 1 host(s) found with type: RaspberryPi
 [
   {
-    "ip": "",
-    "mac": "",
+    "ip": "192.168.0.20",
+    "mac": "01:23:45:67:89:01",
     "type": "RaspberryPi",
     "isYourDevice": true
   }
@@ -201,7 +201,7 @@ var ipArray = [
   "192.168.0.12", 
   "192.168.0.24"
 ];
-arpping.ping(ipArray, (err, found, missing) => {
+arpping.arp(ipArray, (err, found, missing) => {
   if (err) return console.log(err);
   var f = found.length, m = missing.length;
   console.log(f + ' matching host(s) found:');
