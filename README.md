@@ -3,10 +3,12 @@ Discover and search for internet-connected devices (locally) using ping and arp
 
 ## Installation
 Using npm:
-`npm install -save arpping`
+
+`$ npm install -save arpping`
 
 ## Usage
 To include in a project file:
+
 `var arpping = require('arpping')();`
 
 The arpping module returns a function that accepts one argument, namely a timeout for ping scans. If passed no timeout parameter, arrpping will default to 10s (which in my experience has been more than enough time)
@@ -16,7 +18,7 @@ The arpping object has the following methods (each with the appropraitely struct
 
 #### findMyInfo
 The findMyInfo method returns the ip and mac address of the computer running the script (which is stored and used to get the LAN network ip range used in other methods)
-```
+```javascript
 var arpping = require('arpping')();
 
 arpping.findMyInfo((err, info) => {
@@ -29,7 +31,7 @@ arpping.findMyInfo((err, info) => {
 The discover method returns an array of hosts found on the local network. Each host entry contains the host's ip and mac address, and can also be assigned a type based on its mac address VendorID. The host entry that represents the computer running the script will have a "isYourDevice" key set with a value of true.
 
 The discover method also ignores the end ip addresses (i.e. xxx.xxx.x.1 and xxx.xxx.x.255) as these usually correspond to the wifi router/broadcast address
-```
+```javascript
 var arpping = require('arpping')();
 
 arpping.discover((err, hosts) => {
@@ -54,7 +56,6 @@ arpping.discover((err, hosts) => {
     "isYourDevice": true
   }
 ]
-
 */
 ```
 
@@ -63,7 +64,7 @@ The search functionality is broken up into three methods
 
 ###### byIpAddress
 Searching by ip address runs a discovery scan and filters the result based on an input array of desired ip addresses
-```
+```javascript
 var arpping = require('arpping')();
 
 var ipArray = [
@@ -99,7 +100,7 @@ arpping.search.byIpAddress(ipArray, (err, found, missing) => {
 
 ###### byMacAddress
 Searching by mac address functions similarly to the byIpAddress method, with the notable additional ability to search by partial mac addresses (i.e. "01:23:45:67:89:10" which only matches one device vs "01:23:45" which may match multiple devices)
-```
+```javascript
 var arpping = require('arpping')();
 
 var macArray = [
@@ -137,7 +138,7 @@ The following search term(s) returned no results:
 
 ###### byMacType
 Searching by mac type returns all devices that are assigned the specified mac type/vendor (note: my mac address lookup table is painfully sparse)
-```
+```javascript
 var arpping = require('arpping')();
 
 var type = "RaspberryPi";
@@ -162,7 +163,7 @@ arpping.search.byMacType(type, (err, found) => {
 
 #### ping
 The ping method pings a given array of ip addresses (or the full ip range) and returns an array of those addresses that respond as well as an array of those addresses that do not
-```
+```javascript
 var arpping = require('arpping')();
 
 var ipArray = null; // set to null to scan the full ip range (xxx.xxx.x.2 - 254);
@@ -180,7 +181,7 @@ arpping.ping(ipArray, (err, found, missing) => {
 
 #### arp
 The arp method arps a given array of ip addresses and returns an array of hosts that respond as well as an array of hosts that do not
-```
+```javascript
 var arpping = require('arpping')();
 
 // must specify an array, unlike ping
