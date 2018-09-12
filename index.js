@@ -86,9 +86,9 @@ var arpping = {
                 return callback(err);
             }
             if (stdout.indexOf("wlan0: ") > -1) {
-                var wlan0 = stdout.split("wlan0")[1].split('\n\t');
-                var ip = wlan0[1].split(' ')[1];
-                var mac = wlan0[3].split(' ')[1];
+                var wlan0 = stdout.split("wlan0")[1].split('\n');
+                var ip = wlan0[1].slice(wlan0[1].indexOf('inet ')).split(' ')[1];
+                var mac = wlan0[3].slice(wlan0[3].indexOf('ether ')).split(' ')[1];
             }
             else {
                 var en0 = stdout.slice(stdout.indexOf('en0'), stdout.indexOf('en1')).split('\n\t');
