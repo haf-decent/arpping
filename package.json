@@ -1,6 +1,6 @@
 {
   "name": "arpping",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Discover and search for internet-connected devices (locally) using ping and arp",
   "main": "index.js",
   "dependencies": {
