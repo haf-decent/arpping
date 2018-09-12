@@ -20,7 +20,7 @@ else throw new Error('Unsupported OS: ' + osType);
 * @param {Function} callback
 */
 function pingDevices(range, callback) {
-    if (!Array.isArray(range)) {
+    if (!(Array.isArray(range) && range.length)) {
         if (!myIP) return arpping.findMyInfo(() => pingDevices(range, callback));
         var ipStart = myIP.substr(0, myIP.lastIndexOf('.') + 1);
         range = Array.from({length: 253}, (el, i) => ipStart + (i + 2));
