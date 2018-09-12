@@ -61,10 +61,9 @@ function arpDevices(range, callback) {
             checked++;
             if (err || stdout.indexOf('no entry') > -1) missing.push(ip);
             else {
-                var host = {
-                    ip: ip, 
-                    mac: stdout.split(' ')[3]
-                };
+                var host = {};
+                host.ip = ip;
+                host.mac = (osType == "Linux") ? stdout.split('\n')[1].replace(/ +/g, ' ').split(' ')[2]: stdout.split(' ')[3];
                 var known = macLookup(host.mac);
                 if (known) host.type = known;
                 if (ip == myIP) host.isYourDevice = true;
@@ -80,12 +79,13 @@ var retry = false,
     myIP = null;
 var arpping = {
     findMyInfo: function(callback) {
-        exec('ifconfig -a', (err, stdout, stderr) => {
+        exec('ifconfig', (err, stdout, stderr) => {
             if (err) {
                 console.log(err);
                 return callback(err);
             }
-            if (stdout.indexOf("wlan0: ") > -1) {
+            if (osType == "Linux") {
+                if (stdout.indexOf("wlan0") == -1) return callback(new Error('No wifi connection'));
                 var wlan0 = stdout.split("wlan0")[1].split('\n');
                 var ip = wlan0[1].slice(wlan0[1].indexOf('inet ')).split(' ')[1];
                 var mac = wlan0[3].slice(wlan0[3].indexOf('ether ')).split(' ')[1];
