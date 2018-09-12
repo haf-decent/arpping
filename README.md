@@ -1,6 +1,15 @@
 # arpping
 Discover and search for internet-connected devices (locally) using ping and arp
 
+## Motivation
+I was trying to find a quick and reliable way to ping and discover devices connected to my LAN. I tried out:
+
+* [node-nmap](https://www.npmjs.com/package/node-nmap)
+* [libnmap](https://www.npmjs.com/package/libnmap)
+* [node-arp](https://www.npmjs.com/package/node-arp)
+
+But both node-nmap and libnmap were slow and unreliable, and node-arp only had part of the functionality I needed, so I decided to make my own. This is the result, and it's working so far.
+
 ## Installation
 Using npm:
 
@@ -9,7 +18,9 @@ Using npm:
 ## Usage
 To include in a project file:
 
-`var arpping = require('arpping')();`
+```javascript
+var arpping = require('arpping')();
+```
 
 The arpping module returns a function that accepts one argument, namely a timeout for ping scans. If passed no timeout parameter, arrpping will default to 10s (which in my experience has been more than enough time)
 
