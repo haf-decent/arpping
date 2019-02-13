@@ -91,7 +91,7 @@ var arpping = {
                 var mac = wlan0[3].slice(wlan0[3].indexOf('ether ')).split(' ')[1];
             }
             else {
-                var en0 = stdout.slice(stdout.indexOf('en0'), stdout.indexOf('en1')).split('\n\t');
+                var en0 = stdout.slice(stdout.indexOf('en0')).split('\n');
                 if (en0[4].indexOf('status: inactive') > -1) return callback(new Error('No wifi connection'));
                 var ip = en0[3].split(' ')[1];
                 var mac = en0[1].split(' ')[1];
