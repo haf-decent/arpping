@@ -6,13 +6,23 @@ const {exec} = require('child_process');
 const macLookup = require('./macLookup.js');
 
 var flag,
-    timeout, 
     osType = os.type();
 
-if (osType == "Linux" || osType == "Windows_NT") flag = '-w';
-else if (osType == "Darwin") flag = '-t';
+if (osType == 'Linux' || osType == 'Windows_NT') flag = '-w';
+else if (osType == 'Darwin') flag = '-t';
 else throw new Error('Unsupported OS: ' + osType);
 
+/**
+* Build array of full ip range (xxx.xxx.x.1-255) given example ip address
+* @param {String} ip
+*/
+function getFullRange(ip) {
+    ip = ip || arpping.myIP;
+    var ipStart = ip.substr(0, ip.lastIndexOf('.') + 1);
+    return arpping.includeEndpoints ? 
+        Array.from({length: 255}, (el, i) => ipStart + (i + 1)):
+        Array.from({length: 253}, (el, i) => ipStart + (i + 2));
+}
 
 /**
 * Ping a range of ip addresses
@@ -21,16 +31,15 @@ else throw new Error('Unsupported OS: ' + osType);
 */
 function pingDevices(range, callback) {
     if (!(Array.isArray(range) && range.length)) {
-        if (!myIP) return arpping.findMyInfo(() => pingDevices(range, callback));
-        var ipStart = myIP.substr(0, myIP.lastIndexOf('.') + 1);
-        range = Array.from({length: 253}, (el, i) => ipStart + (i + 2));
+        if (!arpping.myIP) return arpping.findMyInfo(() => pingDevices(range, callback));
+        range = getFullRange();
     }
     
     var found = [],
         missing =[],
         checked = 0;
     
-    var args = ['ping', flag, timeout];
+    var args = ['ping', flag, arpping.timeout];
     range.forEach((ip) => {
         args[3] = ip;
         exec(args.join(' '), (err, stdout, stderr) => {
@@ -63,10 +72,10 @@ function arpDevices(range, callback) {
             else {
                 var host = {};
                 host.ip = ip;
-                host.mac = (osType == "Linux") ? stdout.split('\n')[1].replace(/ +/g, ' ').split(' ')[2]: stdout.split(' ')[3];
+                host.mac = (osType == 'Linux') ? stdout.split('\n')[1].replace(/ +/g, ' ').split(' ')[2]: stdout.split(' ')[3];
                 var known = macLookup(host.mac);
                 if (known) host.type = known;
-                if (ip == myIP) host.isYourDevice = true;
+                if (ip == arpping.myIP) host.isYourDevice = true;
                 hosts.push(host);
             }
             
@@ -75,8 +84,7 @@ function arpDevices(range, callback) {
     });
 }
 
-var retry = false,
-    myIP = null;
+var retry = false;
 var arpping = {
     findMyInfo: function(callback) {
         exec('ifconfig', (err, stdout, stderr) => {
@@ -84,9 +92,9 @@ var arpping = {
                 console.log(err);
                 return callback(err);
             }
-            if (osType == "Linux") {
-                if (stdout.indexOf("wlan0") == -1) return callback(new Error('No wifi connection'));
-                var wlan0 = stdout.split("wlan0")[1].split('\n');
+            if (osType == 'Linux') {
+                if (stdout.indexOf('wlan0') == -1) return callback(new Error('No wifi connection'));
+                var wlan0 = stdout.split('wlan0')[1].split('\n');
                 var ip = wlan0[1].slice(wlan0[1].indexOf('inet ')).split(' ')[1];
                 var mac = wlan0[3].slice(wlan0[3].indexOf('ether ')).split(' ')[1];
             }
@@ -97,12 +105,16 @@ var arpping = {
                 var mac = en0[1].split(' ')[1];
             }
 
-            myIP = ip;
+            arpping.myIP = ip;
             callback(null, {ip: ip, mac: mac});
         });
     },
-    discover: function(callback) {
-        if (!myIP) {
+    discover: function(refIP, callback) {
+        var range = null;
+        if (refIP) {
+            range = getFullRange(refIP);
+        }
+        else if (!arpping.myIP) {
             if (retry) {
                 retry = false;
                 return callback(new Error('Failed to find your IP address'));
@@ -110,13 +122,13 @@ var arpping = {
             arpping.findMyInfo((err, info) => {
                 if (err) return callback(err);
                 retry = true;
-                arpping.discover(callback);
+                arpping.discover(info.ip, callback);
             });
             return;
         }
         
         retry = false;
-        pingDevices(null, (err, range) => {
+        pingDevices(range, (err, range) => {
             if (err) return callback(err);
             arpDevices(range, (error, hosts) => {
                 if (error) return callback(error);
@@ -125,11 +137,11 @@ var arpping = {
         });
     },
     search: {
-        byIpAddress: function(ipArray, callback) {
-            if (typeof ipArray == "string") ipArray = [ipArray];
-            else if (!Array.isArray(ipArray) || !ipArray.length) throw new Error("Invalid ipArray. Search input should be one ip address string or an array of ip strings.");
+        byIpAddress: function(ipArray, refIP, callback) {
+            if (typeof ipArray == 'string') ipArray = [ipArray];
+            else if (!Array.isArray(ipArray) || !ipArray.length) throw new Error(`Invalid ipArray: ${ipArray}. Search input should be one ip address string or an array of ip strings.`);
             
-            arpping.discover((err, hosts) => {
+            arpping.discover(refIP || ipArray[0], (err, hosts) => {
                 if (err) return callback(err);
                 var check = JSON.stringify(hosts);
                 callback(
@@ -139,11 +151,11 @@ var arpping = {
                 );
             });
         },
-        byMacAddress: function(macArray, callback) {
-            if (typeof macArray == "string") macArray = [macArray];
-            else if (!Array.isArray(macArray) || !macArray.length) throw new Error("Invalid macArray. Search input should be one mac address string or an array of mac address strings.");
+        byMacAddress: function(macArray, refIP, callback) {
+            if (typeof macArray == 'string') macArray = [macArray];
+            else if (!Array.isArray(macArray) || !macArray.length) throw new Error(`Invalid macArray: ${macArray}. Search input should be one mac address string or an array of mac address strings.`);
             
-            arpping.discover((err, hosts) => {
+            arpping.discover(refIP, (err, hosts) => {
                 if (err) return callback(err);
                 var check = JSON.stringify(hosts);
                 callback(
@@ -157,15 +169,18 @@ var arpping = {
                 );
             })
         },
-        byMacType: function(macType, callback) {
-            arpping.discover((err, hosts) => {
+        byMacType: function(macType, refIP, callback) {
+            arpping.discover(refIP, (err, hosts) => {
                 if (err) return callback(err);
                 callback(null, hosts.filter(h => h.type == macType));
             });
         }
     },
     ping: pingDevices,
-    arp: arpDevices
+    arp: arpDevices,
+    myIP: null,
+    timeout: 10,
+    includeEndpoints: false
 }
 
 
@@ -173,10 +188,13 @@ var arpping = {
 * Initialize arpping with a timeout for ping commands
 * @param {Number} t
 */
-module.exports = function(t) {
-    if (!t) timeout = 10;
-    else if (t < 1 || t > 60) throw new Error('Invalid timeout: ' + t + '\nPlease choose a timeout between 1 and 60 seconds');
-    else timeout = parseInt(t) || t.toFixed(0);
+module.exports = function(options) {
+    if (options.timeout) {
+        if (options.timeout < 1 || options.timeout > 60) throw new Error(`Invalid timeout: ${options.timeout}. Please choose a timeout between 1 and 60s`);
+        else arpping.timeout = parseInt(options.timeout) || options.timeout.toFixed(0);
+    }
+    
+    if (options.includeEndpoints) arpping.includeEndpoints = true;
     
     return arpping;
 };
