@@ -8,7 +8,7 @@ I was trying to find a quick and reliable way to ping and discover devices conne
 * [libnmap](https://www.npmjs.com/package/libnmap)
 * [node-arp](https://www.npmjs.com/package/node-arp)
 
-But both node-nmap and libnmap were slow and unreliable, and node-arp only had part of the functionality I needed, so I decided to make my own. This is the result, and it's working so far.
+But both node-nmap and libnmap were slow and unreliable, and node-arp only had part of the functionality I needed, so I decided to make my own. This is the result, and it's been pretty helpful so far.
 
 ## Installation
 Using npm:
@@ -19,10 +19,18 @@ Using npm:
 To include in a project file:
 
 ```javascript
-var arpping = require('arpping')();
+var arpping = require('arpping')(options);
 ```
 
-The arpping module returns a function that accepts one argument, namely a timeout for ping scans. If passed no timeout parameter, arpping will default to 10s (which in my experience has been more than enough time)
+The arpping module returns a function that accepts an optional `options` object. Valid parameters include:
+
+|Parameter |Default |Description |
+|-----------|---------|-------------|
+| timeout | 10 | The time, in seconds, methods will wait until they return a result |
+| includeEndpoints | false | Specify if you'd like to include range endpoints (1, 255) in your scans |
+
+### Properties
+Both `timeout` and `includeEndpoints` are included as properties of the arpping object, allowing them to be changed at any time. In addition, the IP address of the host device is also available at `arpping.myIP` (once it is found)
 
 ### Methods
 The arpping object has the following methods (each with the appropraitely structured callback function):
@@ -39,13 +47,11 @@ arpping.findMyInfo((err, info) => {
 ```
 
 #### discover
-The discover method returns an array of hosts found on the local network. Each host entry contains the host's ip and mac address, and can also be assigned a type based on its mac address VendorID. The host entry that represents the computer running the script will have a "isYourDevice" key set with a value of true.
-
-The discover method also ignores the end ip addresses (i.e. xxx.xxx.x.1 and xxx.xxx.x.255) as these usually correspond to the wifi router/broadcast address
+The discover method returns an array of hosts found on the local network. Each host entry contains the host's ip and mac address, and can also be assigned a type based on its mac address VendorID. The host entry that represents the computer running the script will have a "isYourDevice" key set with a value of true. By default, the discover scan will reference the host device's IP address to dictate the target range, but you can manually override this by passing a valid IP address as the first argument.
 ```javascript
 var arpping = require('arpping')();
 
-arpping.discover((err, hosts) => {
+arpping.discover(null, (err, hosts) => {
   if (err) return console.log(err);
   console.log(JSON.stringify(hosts, null, 4)); 
 });
@@ -71,10 +77,10 @@ arpping.discover((err, hosts) => {
 ```
 
 #### search
-The search functionality is broken up into three methods
+The search functionality is broken up into three methods. For each, you may pass a reference IP address as the second argument to override the default behavior.
 
 ###### byIpAddress
-Searching by ip address runs a discovery scan and filters the result based on an input array of desired ip addresses
+Searching by ip address runs a discovery scan and filters the result based on an input array of desired ip addresses.
 ```javascript
 var arpping = require('arpping')();
 
@@ -83,7 +89,7 @@ var ipArray = [
   "192.168.0.12",
   "192.168.0.24"
 ];
-arpping.search.byIpAddress(ipArray, (err, found, missing) => {
+arpping.search.byIpAddress(ipArray, '192.168.0.1', (err, found, missing) => {
   if (err) return console.log(err);
   var f = found.length, m = missing.length;
   console.log(f + ' out of ' + (f + m) + ' host(s) found:');
@@ -119,7 +125,7 @@ var macArray = [
   "01:01:01:99:99:99",
   "7f:54:12"
 ];
-arpping.search.byMacAddress(macArray, (err, found, missing) => {
+arpping.search.byMacAddress(macArray, null, (err, found, missing) => {
   if (err) return console.log(err);
   var f = found.length, m = missing.length;
   console.log(f + ' matching host(s) found:');
@@ -153,7 +159,7 @@ Searching by mac type returns all devices that are assigned the specified mac ty
 var arpping = require('arpping')();
 
 var type = "RaspberryPi";
-arpping.search.byMacType(type, (err, found) => {
+arpping.search.byMacType(type, null, (err, found) => {
   if (err) return console.log(err);
   console.log(found.length + ' host(s) found with type: ' + type);
   if (found.length) console.log(JSON.stringify(found, null, 4));
@@ -231,7 +237,7 @@ The following ip address(es) returned no results:
 
 ## Updates
 1. Build out vendorID lookup table, or find some third-party version to include in project
-2. Allow for more customization - custom ip ranges to scan, enable/disable scanning of xxx.xxx.x.1,255, etc.
+2. ~~Allow for more customization - custom ip ranges to scan, enable/disable scanning of xxx.xxx.x.1,255, etc.~~
 3. Other stuff I haven't thought of yet
 4. ???
 5. Profit
