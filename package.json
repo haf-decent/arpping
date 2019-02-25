@@ -1,6 +1,6 @@
 {
   "name": "arpping",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "description": "Discover and search for internet-connected devices (locally) using ping and arp",
   "main": "index.js",
   "dependencies": {
@@ -25,5 +25,5 @@
     "url": "https://github.com/haf-decent/arpping.git"
   },
   "author": "Ryan Hafner <r.hafner20@gmail.com>",
-  "license": "ISC"
+  "license": "MIT"
 }
