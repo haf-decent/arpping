@@ -30,7 +30,7 @@ The arpping module returns a function that accepts an optional `options` object.
 | includeEndpoints | false | Specify if you'd like to include range endpoints (1, 255) in your scans |
 
 ### Properties
-Both `timeout` and `includeEndpoints` are included as properties of the arpping object, allowing them to be changed at any time. In addition, the IP address of the host device is also available at `arpping.myIP` (once it is found)
+Both `timeout` and `includeEndpoints` are included as properties of the arpping object, allowing them to be changed at any time. In addition, the IP address of the host device is also available as the `myIP` property (once it is found)
 
 ### Methods
 The arpping object has the following methods (each with the appropraitely structured callback function):
