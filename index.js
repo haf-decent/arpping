@@ -92,21 +92,21 @@ var arpping = {
                 console.log(err);
                 return callback(err);
             }
+            var output = null;
             if (osType == 'Linux') {
                 if (stdout.indexOf('wlan0') == -1) return callback(new Error('No wifi connection'));
-                var wlan0 = stdout.split('wlan0')[1].split('\n');
-                var ip = wlan0[1].slice(wlan0[1].indexOf('inet ')).split(' ')[1];
-                var mac = wlan0[3].slice(wlan0[3].indexOf('ether ')).split(' ')[1];
+                output = stdout.split('wlan0')[1];
             }
             else {
-                var en0 = stdout.slice(stdout.indexOf('en0')).split('\n');
-                if (en0[4].indexOf('status: inactive') > -1) return callback(new Error('No wifi connection'));
-                var ip = en0[3].split(' ')[1];
-                var mac = en0[1].split(' ')[1];
+                output = stdout.slice(stdout.indexOf('en0'));
+                output = output.slice(0, output.indexOf('active\n')) + 'active';
+                if (en0.split('status: ')[1] == 'inactive') return callback(new Error('No wifi connection'));
             }
+            var ip = output.slice(output.indexOf('inet ') + 5, output.indexOf(' netmask')).trim();
+            var mac = output.slice(output.indexOf('ether ')).split('\n')[0].split(' ')[1];
 
             arpping.myIP = ip;
-            callback(null, {ip: ip, mac: mac});
+            callback(null, { ip, mac });
         });
     },
     discover: function(refIP, callback) {
