@@ -8,7 +8,9 @@ const addresses = {
         "8:66:98",
         "dc:2b:2a",
         "34:8:bc",
-        "e0:ac:cb"
+        "e0:ac:cb",
+        "dc:a9:04",
+        "dc:a9:4"
     ],
     "RaspberryPi": [
         "b8:27:eb"
