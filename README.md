@@ -19,59 +19,64 @@ Using npm:
 To include in a project file:
 
 ```javascript
-var arpping = require('arpping')(options);
+const Arpping = require('arpping');
+var arpping = new Arpping(options);
 ```
 
 The arpping module returns a function that accepts an optional `options` object. Valid parameters include:
 
 |Parameter |Default |Description |
 |-----------|---------|-------------|
-| timeout | 10 | The time, in seconds, methods will wait until they return a result |
+| timeout | 5 | The time, in seconds, methods will wait until they return a result |
 | includeEndpoints | false | Specify if you'd like to include range endpoints (1, 255) in your scans |
+| useCache | true | Specify if you'd like to temporarily cache results for quicker and convenient usage |
+| cacheTimeout | 3600 | Specify the cache's TTL (time to live) in seconds |
 
 ### Properties
-Both `timeout` and `includeEndpoints` are included as properties of the arpping object, allowing them to be changed at any time. In addition, the IP address of the host device is also available as the `myIP` property (once it is found)
+Each parameter can be changed dynamically after initialization. In addition, the IP address of the host device is also available as the `myIP` property (once it is found)
 
 ### Methods
-The arpping object has the following methods (each with the appropraitely structured callback function):
+The Arpping object has the following methods (each with the appropraitely structured callback function):
 
 #### findMyInfo
-The findMyInfo method returns the ip and mac address of the computer running the script (which is stored and used to get the LAN network ip range used in other methods)
+The findMyInfo method returns the ip, mac address, and mac type (if known) of the computer running the script (which is stored and used to get the LAN network ip range used in other methods)
 ```javascript
-var arpping = require('arpping')();
+const Arpping = require('arpping');
+var arpping = new Arpping(options);
 
 arpping.findMyInfo((err, info) => {
-  if (err) return console.log(err);
-  console.log(info); // ex. {"ip": "192.168.0.20", "mac": "01:23:45:67:89:01"}
+    if (err) return console.log(err);
+    console.log(info); // ex. {"ip": "192.168.0.20", "mac": "01:23:45:67:89:01"}
 });
 ```
 
 #### discover
-The discover method returns an array of hosts found on the local network. Each host entry contains the host's ip and mac address, and can also be assigned a type based on its mac address VendorID. The host entry that represents the computer running the script will have a "isYourDevice" key set with a value of true. By default, the discover scan will reference the host device's IP address to dictate the target range, but you can manually override this by passing a valid IP address as the first argument.
+The discover method returns an array of hosts found on the local network. Each host entry contains the host's ip and mac address, and can also be assigned a type based on its mac address VendorID. The host entry that represents the computer running the script will have a "isHostDevice" key set with a value of true. By default, the discover scan will reference the host device's IP address to dictate the target range, but you can manually override this by passing a valid IP address as the first argument.
 ```javascript
-var arpping = require('arpping')();
+const Arpping = require('arpping');
+var arpping = new Arpping(options);
 
 arpping.discover(null, (err, hosts) => {
-  if (err) return console.log(err);
-  console.log(JSON.stringify(hosts, null, 4)); 
+    if (err) return console.log(err);
+    console.log(JSON.stringify(hosts, null, 4)); 
 });
 
 /* Example output
 [
-  {
-    "ip": "192.168.0.3",
-    "mac": "01:01:01:01:01:01"
-  },
-  {
-    "ip": "192.168.0.12",
-    "mac": "99:01:99:01:99:01"
-  },
-  {
-    "ip": "192.168.0.20",
-    "mac": "01:23:45:67:89:01",
-    "type": "RaspberryPi",
-    "isYourDevice": true
-  }
+    {
+        "ip": "192.168.0.3",
+        "mac": "01:01:01:01:01:01"
+    },
+    {
+        "ip": "192.168.0.12",
+        "mac": "99:01:99:01:99:01"
+    },
+    {
+        "ip": "192.168.0.20",
+        "mac": "01:23:45:67:89:01",
+        "type": "RaspberryPi",
+        "isYourDevice": true
+    }
 ]
 */
 ```
@@ -79,101 +84,111 @@ arpping.discover(null, (err, hosts) => {
 #### search
 The search functionality is broken up into three methods. For each, you may pass a reference IP address as the second argument to override the default behavior.
 
-###### byIpAddress
+###### searchByIpAddress
 Searching by ip address runs a discovery scan and filters the result based on an input array of desired ip addresses.
 ```javascript
-var arpping = require('arpping')();
+const Arpping = require('arpping');
+var arpping = new Arpping(options);
 
 var ipArray = [
-  "192.168.0.3",
-  "192.168.0.12",
-  "192.168.0.24"
+    "192.168.0.3",
+    "192.168.0.12",
+    "192.168.0.24"
 ];
-arpping.search.byIpAddress(ipArray, '192.168.0.1', (err, found, missing) => {
-  if (err) return console.log(err);
-  var f = found.length, m = missing.length;
-  console.log(f + ' out of ' + (f + m) + ' host(s) found:');
-  if (f) console.log(JSON.stringify(found, null, 4));
-  console.log(m + ' out of ' + (f + m) + ' host(s) not found:');
-  if (m) console.log(missing);
+arpping.searchByIpAddress(ipArray, '192.168.0.1', (err, found, missing) => {
+    if (err) return console.log(err);
+    var f = found.length, m = missing.length;
+    console.log(f + ' out of ' + (f + m) + ' host(s) found:');
+    if (f) console.log(JSON.stringify(found, null, 4));
+    console.log(m + ' out of ' + (f + m) + ' host(s) not found:');
+    if (m) console.log(missing);
 });
 
 /* Example output
 2 out of 3 host(s) found:
 [
-  {
-    "ip": "192.168.0.3",
-    "mac": "01:01:01:01:01:01"
-  },
-  {
-    "ip": "192.168.0.12",
-    "mac": "01:01:01:99:99:99"
-  }
+    {
+        "ip": "192.168.0.3",
+        "mac": "01:01:01:01:01:01"
+    },
+    {
+        "ip": "192.168.0.12",
+        "mac": "01:01:01:99:99:99"
+    }
 ]
 1 out of 3 host(s) not found:
 ["192.168.0.24"]
 */
 ```
 
-###### byMacAddress
-Searching by mac address functions similarly to the byIpAddress method, with the notable additional ability to search by partial mac addresses (i.e. "01:23:45:67:89:10" which only matches one device vs "01:23:45" which may match multiple devices)
+###### searchByMacAddress
+Searching by mac address functions similarly to the byIpAddress method, with the notable additional ability to search by partial mac addresses (i.e. "01:23:45:67:89:10" which only matches one device vs "01:23:45" which may match multiple devices). Each device found will have a "matched" array specifying the corresponding searched mac address(es).
 ```javascript
-var arpping = require('arpping')();
+const Arpping = require('arpping');
+var arpping = new Arpping(options);
 
 var macArray = [
-  "01:01:01",
-  "01:01:01:99:99:99",
-  "7f:54:12"
+    "01:01:01",
+    "01:01:01:99:99:99",
+    "7f:54:12"
 ];
-arpping.search.byMacAddress(macArray, null, (err, found, missing) => {
-  if (err) return console.log(err);
-  var f = found.length, m = missing.length;
-  console.log(f + ' matching host(s) found:');
-  if (f) console.log(JSON.stringify(found, null, 4));
-  if (m) {
-    console.log('The following search term(s) returned no results:');
-    console.log(missing);
-  }
+arpping.searchByMacAddress(macArray, null, (err, found, missing) => {
+    if (err) return console.log(err);
+    var f = found.length, m = missing.length;
+    console.log(f + ' matching host(s) found:');
+    if (f) console.log(JSON.stringify(found, null, 4));
+    if (m) {
+        console.log('The following search term(s) returned no results:');
+        console.log(missing);
+    }
 });
 
 /* Example output
 2 matching host(s) found:
 [
-  {
-    "ip": "192.168.0.3",
-    "mac": "01:01:01:01:01:01"
-  },
-  {
-    "ip": "192.168.0.12",
-    "mac": "01:01:01:99:99:99"
-  }
+    {
+        "ip": "192.168.0.3",
+        "mac": "01:01:01:01:01:01",
+        "matched": [
+            "01:01:01"
+        ]
+    },
+    {
+        "ip": "192.168.0.12",
+        "mac": "01:01:01:99:99:99",
+        "matched": [
+            "01:01:01",
+            "01:01:01:99:99:99"
+        ]
+    }
 ]
 The following search term(s) returned no results:
 ["7f:54:12"]
 */
 ```
 
-###### byMacType
+###### searchByMacType
 Searching by mac type returns all devices that are assigned the specified mac type/vendor (note: my mac address lookup table is painfully sparse)
 ```javascript
-var arpping = require('arpping')();
+const Arpping = require('arpping');
+var arpping = new Arpping(options);
 
 var type = "RaspberryPi";
-arpping.search.byMacType(type, null, (err, found) => {
-  if (err) return console.log(err);
-  console.log(found.length + ' host(s) found with type: ' + type);
-  if (found.length) console.log(JSON.stringify(found, null, 4));
+arpping.searchByMacType(type, null, (err, found) => {
+    if (err) return console.log(err);
+    console.log(found.length + ' host(s) found with type: ' + type);
+    if (found.length) console.log(JSON.stringify(found, null, 4));
 });
 
 /* Example output
 1 host(s) found with type: RaspberryPi
 [
-  {
-    "ip": "192.168.0.20",
-    "mac": "01:23:45:67:89:01",
-    "type": "RaspberryPi",
-    "isYourDevice": true
-  }
+    {
+        "ip": "192.168.0.20",
+        "mac": "01:23:45:67:89:01",
+        "type": "RaspberryPi",
+        "isYourDevice": true
+    }
 ]
 */
 ```
@@ -181,13 +196,14 @@ arpping.search.byMacType(type, null, (err, found) => {
 #### ping
 The ping method pings a given array of ip addresses (or the full ip range) and returns an array of those addresses that respond as well as an array of those addresses that do not
 ```javascript
-var arpping = require('arpping')();
+const Arpping = require('arpping');
+var arpping = new Arpping(options);
 
 var ipArray = null; // set to null to scan the full ip range (xxx.xxx.x.2 - 254);
 arpping.ping(ipArray, (err, found, missing) => {
-  if (err) return console.log(err);
-  console.log(found.length + ' host(s) found');
-  if (found.length) console.log(found);
+    if (err) return console.log(err);
+    console.log(found.length + ' host(s) found');
+    if (found.length) console.log(found);
 });
 
 /* Example output
@@ -199,36 +215,37 @@ arpping.ping(ipArray, (err, found, missing) => {
 #### arp
 The arp method arps a given array of ip addresses and returns an array of hosts that respond as well as an array of hosts that do not
 ```javascript
-var arpping = require('arpping')();
+const Arpping = require('arpping');
+var arpping = new Arpping(options);
 
 // must specify an array, unlike ping
 var ipArray = [
-  "192.168.0.3", 
-  "192.168.0.12", 
-  "192.168.0.24"
+    "192.168.0.3", 
+    "192.168.0.12", 
+    "192.168.0.24"
 ];
 arpping.arp(ipArray, (err, found, missing) => {
-  if (err) return console.log(err);
-  var f = found.length, m = missing.length;
-  console.log(f + ' matching host(s) found:');
-  if (f) console.log(JSON.stringify(found, null, 4));
-  if (m) {
-    console.log('The following ip address(es) returned no results:');
-    console.log(missing);
-  }
+    if (err) return console.log(err);
+    var f = found.length, m = missing.length;
+    console.log(f + ' matching host(s) found:');
+    if (f) console.log(JSON.stringify(found, null, 4));
+    if (m) {
+        console.log('The following ip address(es) returned no results:');
+        console.log(missing);
+    }
 });
 
 /* Example output
 2 host(s) found:
 [
-  {
-    "ip": "192.168.0.3",
-    "mac": "01:01:01:01:01:01"
-  },
-  {
-    "ip": "192.168.0.12",
-    "mac": "01:01:01:99:99:99"
-  }
+    {
+        "ip": "192.168.0.3",
+        "mac": "01:01:01:01:01:01"
+    },
+    {
+        "ip": "192.168.0.12",
+        "mac": "01:01:01:99:99:99"
+    }
 ]
 The following ip address(es) returned no results:
 ["192.168.0.24"]
