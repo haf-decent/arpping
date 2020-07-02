@@ -29,6 +29,7 @@ const addresses = {
         "20:f5:43"
     ]
 }
+const stringAddresses = JSON.stringify(addresses);
 
 /**
 * Cross references provided mac address with lookup table (incomplete)
@@ -44,10 +45,11 @@ function macLookup(mac, type) {
         if (addresses[type].indexOf(leading) > -1) return type;
     }
     
-    if (JSON.stringify(addresses).indexOf(leading) == -1) return false;
+    if (stringAddresses.indexOf(leading) == -1) return false;
     for (var vendor in addresses) {
         if (addresses[vendor].indexOf(leading) > -1) return vendor;
     }
+    return false;
 }
 
 module.exports = macLookup;
