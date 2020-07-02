@@ -74,7 +74,7 @@ Arpping.prototype.findMyInfo = function(callback) {
         var type = macLookup(mac);
 
         this.myIP = ip;
-        callback(null, type ? { ip, mac }: { ip, mac, type });
+        callback(null, type ? { ip, mac, type }: { ip, mac });
     });
 }
 
