@@ -53,80 +53,78 @@ Arpping.prototype._getFullRange = function(ip) {
 
 /**
 * Find ip and mac addresses of host device
-* @param {Function} callback
 */
-Arpping.prototype.findMyInfo = function(callback) {
-    exec(ipCommand, (err, stdout, stderr) => {
-        if (err) return callback(err);
+Arpping.prototype.findMyInfo = function() {
+    return new Promise((resolve, reject) => {
+        exec(ipCommand, (err, stdout, stderr) => {
+            if (err) return reject(err);
 
-        var output = null;
-        if (osType == 'Linux') {
-            if (stdout.indexOf('wlan0') == -1) return callback(new Error('No wifi connection'));
-            output = stdout.split('wlan0')[1];
-        }
-        else {
-            output = stdout.slice(stdout.indexOf('en0'));
-            output = output.slice(0, output.indexOf('active\n')) + 'active';
-            if (output.split('status: ')[1] == 'inactive') return callback(new Error('No wifi connection'));
-        }
-        var ip = output.slice(output.indexOf('inet ') + 5, output.indexOf(' netmask')).trim();
-        var mac = output.slice(output.indexOf('ether ')).split('\n')[0].split(' ')[1].trim();
-        var type = macLookup(mac);
+            var output = null;
+            if (osType == 'Linux') {
+                if (stdout.indexOf('wlan0') == -1) return reject(new Error('No wifi connection'));
+                output = stdout.split('wlan0')[1];
+            }
+            else {
+                output = stdout.slice(stdout.indexOf('en0'));
+                output = output.slice(0, output.indexOf('active\n')) + 'active';
+                if (output.split('status: ')[1] == 'inactive') return reject(new Error('No wifi connection'));
+            }
+            var ip = output.slice(output.indexOf('inet ') + 5, output.indexOf(' netmask')).trim();
+            var mac = output.slice(output.indexOf('ether ')).split('\n')[0].split(' ')[1].trim();
+            var type = macLookup(mac);
 
-        this.myIP = ip;
-        callback(null, type ? { ip, mac }: { ip, mac, type });
-    });
+            this.myIP = ip;
+            return resolve(type ? { ip, mac, type }: { ip, mac });
+        });
+    })
 }
 
 /**
 * Discover all hosts connected to your local network or based on a reference IP address
 * @param {String} refIP
-* @param {Function} callback
 * @param {Boolean} retry
 */
-Arpping.prototype.discover = function(refIP, callback, retry = true) {
-    if (this.useCache && this.cache.length && Date.now() - this.cacheUpdate < this.cacheTimeout * 1000) return callback(null, this.cache);
+Arpping.prototype.discover = function(refIP, retry = true) {
+    if (this.useCache && this.cache.length && Date.now() - this.cacheUpdate < this.cacheTimeout * 1000) {
+        return new Promise((resolve, reject) => resolve(this.cache));
+    }
     if (!refIP && !this.myIP) {
-        if (retry) return this.findMyInfo((err, info) => {
-            if (err) return callback(err);
-            this.discover(info.ip, callback, false);
-        });
-        return callback(new Error('Failed to find host IP address'));
+        if (retry) return this.findMyInfo().then(info => this.discover(info.ip, false));
+        return new Promise((resolve, reject) => reject(new Error('Failed to find host IP address')));
     }
 
-    var range = this._getFullRange(refIP || this.myIP);
-    this.ping(range, (err1, hosts) => {
-        if (err1) return callback(err);
-        if (!hosts.length) return callback(null, []);
-        this.arp(hosts, (err2, hosts) => {
-            if (err2) return callback(err2);
-            this.cache = hosts.slice(0);
+    return new Promise((resolve, reject) => {
+        var range = this._getFullRange(refIP || this.myIP);
+        this.ping(range).then(({ hosts }) => this.arp(hosts).then(({ hosts: found }) => {
+            this.cache = found.slice(0);
             this.cacheUpdate = Date.now();
-            callback(null, hosts);
-        });
+            resolve(found);
+        })).catch(reject);
     });
 }
 
 /**
 * Ping a range of ip addresses
 * @param {Array} range
-* @param {Function} callback
 */
-Arpping.prototype.ping = function(range, callback) {
+Arpping.prototype.ping = function(range) {
     if (!(Array.isArray(range) && range.length)) {
-        if (!this.myIP) return this.findMyInfo(() => this.ping(range, callback));
+        if (!this.myIP) return this.findMyInfo().then(() => this.ping(range));
         range = this._getFullRange();
     }
-    var found = [],
-        missing =[],
-        checked = 0;
-    range.forEach(ip => {
-        exec(`ping ${flag} ${this.timeout} ${ip}`, (err, stdout, stderr) => {
-            checked++;
-            if (err || stdout.indexOf('100% packet loss') > -1) missing.push(ip);
-            else found.push(ip);
-            
-            if (checked == range.length) callback(null, found, missing);
+
+    return new Promise((resolve, reject) => {
+        var hosts = [],
+            missing =[],
+            checked = 0;
+        range.forEach(ip => {
+            exec(`ping ${flag} ${this.timeout} ${ip}`, (err, stdout, stderr) => {
+                checked++;
+                if (err || stdout.indexOf('100% packet loss') > -1) missing.push(ip);
+                else hosts.push(ip);
+                
+                if (checked == range.length) resolve({ hosts, missing });
+            });
         });
     });
 }
@@ -134,97 +132,88 @@ Arpping.prototype.ping = function(range, callback) {
 /**
 * Arp a range of ip addresses
 * @param {Array} range
-* @param {Function} callback
 */
-Arpping.prototype.arp = function(range, callback) {
+Arpping.prototype.arp = function(range) {
     if (typeof range == 'string') range = [ range ];
-    else if (!Array.isArray(range)) return callback(new Error('range must be an array of IP addresses'));
-    else if (!range.length) return callback(new Error('range must not be empty'));
+    else if (!Array.isArray(range)) return new Promise((resolve, reject) => reject(new Error('range must be an array of IP addresses')));
+    else if (!range.length) return new Promise((resolve, reject) => resolve([], []));
     
-    var hosts = [],
-        missing = [],
-        checked = 0;
-    range.forEach(ip => {
-        exec(`arp ${ip}`, (err, stdout, stderr) => {
-            checked++;
-            if (err || stdout.indexOf('no entry') > -1) missing.push(ip);
-            else {
-                var mac = (osType == 'Linux') ? 
-                    stdout.split('\n')[1].replace(/ +/g, ' ').split(' ')[2]: 
-                    stdout.split(' ')[3];
-                var host = { ip, mac };
-                var type = macLookup(mac);
-                if (type) host.type = type;
-                if (ip == this.myIP) host.isHostDevice = true;
-                hosts.push(host);
-            }
-            
-            if (checked == range.length) callback(null, hosts, missing);
+    return new Promise((resolve, reject) => {
+        var hosts = [],
+            missing = [],
+            checked = 0;
+        range.forEach(ip => {
+            exec(`arp ${ip}`, (err, stdout, stderr) => {
+                checked++;
+                if (err || stdout.indexOf('no entry') > -1) missing.push(ip);
+                else {
+                    var mac = (osType == 'Linux') ? 
+                        stdout.split('\n')[1].replace(/ +/g, ' ').split(' ')[2]: 
+                        stdout.split(' ')[3];
+                    var host = { ip, mac };
+                    var type = macLookup(mac);
+                    if (type) host.type = type;
+                    if (ip == this.myIP) host.isHostDevice = true;
+                    hosts.push(host);
+                }
+                
+                if (checked == range.length) resolve({ hosts, missing });
+            });
         });
-    });
+    })
 }
 
 /**
 * Search for one or multiple IP addresses
 * @param {String/Array} ipArray
 * @param {String} refIP
-* @param {Function} callback
 */
-Arpping.prototype.searchByIpAddress = function(ipArray, refIP, callback) {
+Arpping.prototype.searchByIpAddress = function(ipArray, refIP) {
     if (typeof ipArray === 'string') ipArray = [ ipArray ];
     else if (!Array.isArray(ipArray) || !ipArray.length) {
-        return callback(new Error(`Invalid ipArray: ${ipArray}. Search input should be one ip address string or an array of ip strings.`));
+        return new Promise((resolve, reject) => reject(new Error(`Invalid ipArray: ${ipArray}. Search input should be one ip address string or an array of ip strings.`)));
     }
     
-    this.discover(refIP || ipArray[0], (err, hosts) => {
-        if (err) return callback(err);
+    return new Promise((resolve, reject) => this.discover(refIP || ipArray[0]).then(hosts => {
         var hostIps = hosts.map(h => h.ip);
-        callback(
-            null, 
-            hosts.filter(h => ipArray.includes(h.ip)), 
-            ipArray.filter(ip => !hostIps.includes(ip))
-        );
-    });
+        resolve({
+            hosts: hosts.filter(h => ipArray.includes(h.ip)), 
+            missing: ipArray.filter(ip => !hostIps.includes(ip))
+        });
+    }).catch(reject));
 }
 
 /**
 * Search for one or multiple, full or partial mac addresses
 * @param {String/Array} macArray
 * @param {String} refIP
-* @param {Function} callback
 */
-Arpping.prototype.searchByMacAddress = function(macArray, refIP, callback) {
+Arpping.prototype.searchByMacAddress = function(macArray, refIP) {
     if (typeof macArray == 'string') macArray = [ macArray ];
     else if (!Array.isArray(macArray) || !macArray.length) {
-        throw new Error(`Invalid macArray: ${macArray}. Search input should be one mac address string or an array of mac address strings.`);
+        return new Promise((resolve, reject) => reject(`Invalid macArray: ${macArray}. Search input should be one mac address string or an array of mac address strings.`));
     }
     
-    this.discover(refIP, (err, hosts) => {
-        if (err) return callback(err);
+    return new Promise((resolve, reject) => this.discover(refIP).then(hosts => {
         var check = JSON.stringify(hosts);
-        callback(
-            null,
-            hosts.filter(h => {
+        resolve({
+            hosts: hosts.filter(h => {
                 h.matched = [];
                 for (var m of macArray) if (h.mac.indexOf(m) > -1) h.matched.push(m);
                 return h.matched.length;
             }),
-            macArray.filter(m => check.indexOf(m) == -1)
-        );
-    });
+            missing: macArray.filter(m => check.indexOf(m) == -1)
+        });
+    }));
 }
 
 /**
 * Search for devices with the designated mac address type
 * @param {String} macType
 * @param {String} refIP
-* @param {Function} callback
 */
-Arpping.prototype.searchByMacType = function(macType, refIP, callback) {
-    this.discover(refIP, (err, hosts) => {
-        if (err) return callback(err);
-        callback(null, hosts.filter(h => h.type == macType));
-    });
+Arpping.prototype.searchByMacType = function(macType, refIP) {
+    return this.discover(refIP).then(hosts => hosts.filter(h => h.type == macType));
 }
 
 module.exports = Arpping;
