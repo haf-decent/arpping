@@ -23,7 +23,7 @@ switch(osType) {
         ipCommand = 'ifconfig';
         break;
     default:
-        throw new Error('Unsupported OS: ' + osType);
+        throw new Error(`Unsupported OS: ${osType}`);
 }
 
 function Arpping({ timeout = 5, includeEndpoints = false, useCache = true, cacheTimeout = 3600 }) {
