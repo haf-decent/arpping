@@ -97,7 +97,7 @@ arpping.searchByIpAddress(ipArray, '192.168.0.1')
     .then(({ hosts, missing }) => {
         var h = hosts.length, m = missing.length;
         console.log(`${h} out of ${h + m} host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
-        console.log(`${m} out of ${h + m} host(s) not found:\n${JSON.stringify(missing, null, 4)}`);
+        console.log(`${m} out of ${h + m} host(s) not found:\n${missing}`);
     })
     .catch(err => console.log(err));
 
