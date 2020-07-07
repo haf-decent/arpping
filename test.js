@@ -66,7 +66,7 @@ if (input[2] == 'example') {
         if (err) return console.log(err);
         if (info.type) arpping.searchByMacType(info.type, null, (err, found) => {
             if (err) return console.log(err);
-            console.log(`Found ${found.length} host(s) with your Mac Type (${host[0].type}):\n${JSON.stringify(found, null, 4)}`);
+            console.log(`Found ${found.length} host(s) with your Mac Type (${found[0].type}):\n${JSON.stringify(found, null, 4)}`);
         });
         else console.log(`No mac type found for your device`);
     });
