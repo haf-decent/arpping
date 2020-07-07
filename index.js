@@ -26,7 +26,7 @@ switch(osType) {
         throw new Error(`Unsupported OS: ${osType}`);
 }
 
-function Arpping({ timeout = 5, includeEndpoints = false, useCache = true, cacheTimeout = 3600 }) {
+function Arpping({ timeout = 5, includeEndpoints = false, useCache = true, cacheTimeout = 3600 } = {}) {
     if (timeout < 1 || timeout > 60) throw new Error(`Invalid timeout parameter: ${timeout}. Timeout should be between 1 and 60.`);
     this.timeout = parseInt(timeout) || timeout.toFixed(0);
 
