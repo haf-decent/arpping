@@ -27,7 +27,7 @@ The arpping module returns a function that accepts an optional `options` object.
 
 |Parameter |Default |Description |
 |-----------|---------|-------------|
-| timeout | 5 | The time, in seconds, methods will wait until they return a result |
+| timeout | 5 | The time, in seconds, ping will try to send packets to a device before returning results |
 | includeEndpoints | false | Specify if you'd like to include range endpoints (1, 255) in your scans |
 | useCache | true | Specify if you'd like to temporarily cache results for quicker and convenient usage |
 | cacheTimeout | 3600 | Specify the cache's TTL (time to live) in seconds |
