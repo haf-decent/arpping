@@ -77,7 +77,7 @@ Arpping.prototype.findMyInfo = function() {
             this.myIP = ip;
             return resolve(type ? { ip, mac, type }: { ip, mac });
         });
-    })
+    });
 }
 
 /**
@@ -216,7 +216,7 @@ Arpping.prototype.searchByMacAddress = function(macArray, refIP) {
 */
 Arpping.prototype.searchByMacType = function(macType, refIP) {
     macType = macType.toLowerCase();
-    return this.discover(refIP).then(hosts => hosts.filter(h => h.type.toLowerCase() == macType));
+    return this.discover(refIP).then(hosts => hosts.filter(h => h.type && h.type.toLowerCase() == macType));
 }
 
 module.exports = Arpping;
