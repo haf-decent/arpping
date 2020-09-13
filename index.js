@@ -2,6 +2,7 @@
 
 const os = require('os');
 const { exec } = require('child_process');
+const Netmask = require('netmask').Netmask;
 
 const macLookup = require('./macLookup.js');
 
@@ -32,6 +33,7 @@ function Arpping({ timeout = 5, includeEndpoints = false, useCache = true, cache
 
     this.includeEndpoints = includeEndpoints;
     this.myIP = null;
+    this.myMask = null;
 
     this.useCache = useCache;
     this.cache = [];
@@ -40,16 +42,23 @@ function Arpping({ timeout = 5, includeEndpoints = false, useCache = true, cache
 }
 
 /**
-* Build array of full ip range (xxx.xxx.x.1-255) given example ip address
+* Build array of full ip range (xxx.xxx.xxx.1-255) given example ip address
 * @param {String} ip
 */
-Arpping.prototype._getFullRange = function(ip) {
+Arpping.prototype._getFullRange = function(ip, mask = 24) {
     // don't use default assignment so false-y values are overwritten
     ip = ip || this.myIP;
-    var ipStart = ip.substr(0, ip.lastIndexOf('.') + 1);
+    // add mask to ip eg xxx.xxx.xxx.xxx/yy
+    ip = ip + '/' + mask;
+
+    var range = [];
+    var block = new Netmask(ips);
+    range.push(block.base);
+    range.forEach((ip, _, _) => range.push(ip));
+    range.push(block.broadcast);
     return this.includeEndpoints ? 
-        Array.from({ length: 255 }, (_, i) => ipStart + (i + 1)):
-        Array.from({ length: 253 }, (_, i) => ipStart + (i + 2));
+        range:
+        range.splice(1, range.length-2);
 }
 
 /**
@@ -71,10 +80,12 @@ Arpping.prototype.findMyInfo = function() {
                 if (output.split('status: ')[1] == 'inactive') return reject(new Error('No wifi connection'));
             }
             var ip = output.slice(output.indexOf('inet ') + 5, output.indexOf(' netmask')).trim();
+            var mask = output.slice(output.indexOf('netmask ') + 5, output.indexOf(' broadcast')).trim();
             var mac = output.slice(output.indexOf('ether ')).split('\n')[0].split(' ')[1].trim();
             var type = macLookup(mac);
 
             this.myIP = ip;
+            this.myMask = mask;
             return resolve(type ? { ip, mac, type }: { ip, mac });
         });
     });
@@ -85,7 +96,7 @@ Arpping.prototype.findMyInfo = function() {
 * @param {String} refIP
 * @param {Boolean} retry
 */
-Arpping.prototype.discover = function(refIP, retry = true) {
+Arpping.prototype.discover = function(refIP, mask = 24, retry = true) {
     if (this.useCache && this.cache.length && Date.now() - this.cacheUpdate < this.cacheTimeout * 1000) {
         return new Promise((resolve, reject) => resolve(this.cache));
     }
@@ -94,7 +105,7 @@ Arpping.prototype.discover = function(refIP, retry = true) {
         return new Promise((resolve, reject) => reject(new Error('Failed to find host IP address')));
     }
 
-    var range = this._getFullRange(refIP);
+    var range = this._getFullRange(refIP, mask);
     return this.ping(range).then(({ hosts }) => this.arp(hosts)).then(({ hosts }) => {
         this.cache = hosts.slice(0);
         this.cacheUpdate = Date.now();
@@ -109,7 +120,7 @@ Arpping.prototype.discover = function(refIP, retry = true) {
 Arpping.prototype.ping = function(range) {
     if (!(Array.isArray(range) && range.length)) {
         if (!this.myIP) return this.findMyInfo().then(() => this.ping(range));
-        range = this._getFullRange();
+        range = this._getFullRange(this.myIP, this.myMask);
     }
 
     return new Promise((resolve, reject) => {
