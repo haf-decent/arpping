@@ -44,6 +44,7 @@ function Arpping({ timeout = 5, includeEndpoints = false, useCache = true, cache
 /**
 * Build array of full ip range (xxx.xxx.xxx.1-255) given example ip address
 * @param {String} ip
+* @param {Number} mask
 */
 Arpping.prototype._getFullRange = function(ip, mask = 24) {
     // don't use default assignment so false-y values are overwritten
@@ -54,7 +55,7 @@ Arpping.prototype._getFullRange = function(ip, mask = 24) {
     var range = [];
     var block = new Netmask(ips);
     range.push(block.base);
-    range.forEach((ip, _, _) => range.push(ip));
+    range.forEach((ip, _, index) => range.push(ip));
     range.push(block.broadcast);
     return this.includeEndpoints ? 
         range:
