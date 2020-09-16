@@ -201,7 +201,7 @@ Arpping.prototype.searchByMacAddress = function(macArray, refIP) {
         return {
             hosts: hosts.filter(h => {
                 h.matched = [];
-                for (var m of macArray) if (h.mac.indexOf(m) > -1) h.matched.push(m);
+                for (var m of macArray) if (h.mac.toLowerCase().indexOf(m.toLowerCase()) > -1) h.matched.push(m);
                 return h.matched.length;
             }),
             missing: macArray.filter(m => check.indexOf(m) == -1)
