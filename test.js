@@ -33,7 +33,7 @@ const tests = {
 var start = Date.now();
 var input = process.argv;
 
-const errHandler = err => console.log(`Error during ${input[2]}: ${err}`);
+const errHandler = err => console.log(`Error during ${input[2]}: ${err.stack}`);
 const timeHandler = () => console.log(`\nFinished ${input[2]} in ${(Date.now() - start)/1000}s`)
 
 console.log('\n--------------------------------');
@@ -42,10 +42,11 @@ if (input[2] == 'example') {
     console.log('Finding devices on your network with the same macType as your device...');
     arpping.findMyInfo()
       .then(info => {
-          if (info.type) return arpping.searchByMacType(info.type);
-          console.log(`No mac type found for your device`);
-      })
-      .then(hosts => console.log(`Found ${hosts.length} host(s) with your Mac Type (${info.type}):\n${JSON.stringify(hosts, null, 4)}`))
+          if (!info.type) console.log(`No mac type found for your device`);
+          return arpping.searchByMacType(info.type).then(hosts => {
+              console.log(`Found ${hosts.length} host(s) with your Mac Type (${info.type}):\n${JSON.stringify(hosts, null, 4)}`)
+          });
+      }) 
       .catch(errHandler);
 }
 else if (!tests[input[2]]) return console.log(
