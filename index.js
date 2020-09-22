@@ -53,9 +53,9 @@ Arpping.prototype._getFullRange = function(ip, mask = 24) {
     ip = ip + '/' + mask;
 
     var range = [];
-    var block = new Netmask(ips);
+    var block = new Netmask(ip);
     range.push(block.base);
-    range.forEach((ip, _, index) => range.push(ip));
+    block.forEach((ip, _, index) => range.push(ip));
     range.push(block.broadcast);
     return this.includeEndpoints ? 
         range:
