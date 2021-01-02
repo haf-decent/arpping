@@ -30,8 +30,8 @@ const tests = {
     }
 }
 
-var start = Date.now();
-var input = process.argv;
+const start = Date.now();
+const input = process.argv;
 
 const errHandler = err => console.log(`Error during ${input[2]}: ${err.stack}`);
 const timeHandler = () => console.log(`\nFinished ${input[2]} in ${(Date.now() - start)/1000}s`)
@@ -49,16 +49,12 @@ if (input[2] == 'example') {
       }) 
       .catch(errHandler);
 }
-else if (!tests[input[2]]) return console.log(
-    `Invalid command: ${input[2]} 
-    \nValid commands:\n- ${Object.keys(tests).join('\n- ')}`
-);
-else if (input[4] || input[2].indexOf('search') > -1) {
-    arpping[input[2]](input[3].trim().split(','), input[4]).then(tests[input[2]]).then(timeHandler).catch(errHandler);
-}
-else if (input[3]) {
-    arpping[input[2]](input[3].trim().split(',')).then(tests[input[2]]).then(timeHandler).catch(errHandler);
-}
+else if (!tests[input[2]]) console.log(`Invalid command: ${input[2]} \nValid commands:\n- ${Object.keys(tests).join('\n- ')}`);
 else {
-    arpping[input[2]]().then(tests[input[2]]).then(timeHandler).catch(errHandler);
+    const args = input.slice(3);
+    if (args[0]) args[0] = args[0].trim().split(',');
+    arpping[ input[2] ](...args)
+        .then(tests[ input[2] ])
+        .then(timeHandler)
+        .catch(errHandler)
 }
