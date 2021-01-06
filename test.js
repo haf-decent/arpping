@@ -1,5 +1,3 @@
-'use strict';
-
 const Arpping = require('./index.js');
 const arpping = new Arpping({
     timeout: 4,
@@ -9,7 +7,6 @@ const arpping = new Arpping({
 });
 
 const tests = {
-    findMyInfo: info => console.log(info),
     discover: hosts => console.log(`${hosts.length} host(s) found:\n${JSON.stringify(hosts, null, 4)}`),
     searchByIpAddress: ({ hosts, missing }) => {
         console.log(`Found ${hosts.length} host(s):\n${JSON.stringify(hosts, null, 4)}`);
@@ -40,14 +37,13 @@ console.log('\n--------------------------------');
 
 if (input[2] == 'example') {
     console.log('Finding devices on your network with the same macType as your device...');
-    arpping.findMyInfo()
-      .then(info => {
-          if (!info.type) console.log(`No mac type found for your device`);
-          return arpping.searchByMacType(info.type).then(hosts => {
-              console.log(`Found ${hosts.length} host(s) with your Mac Type (${info.type}):\n${JSON.stringify(hosts, null, 4)}`)
-          });
-      }) 
-      .catch(errHandler);
+    const { type = null } = arpping.myDevice;
+    if (!type) return console.log(`No mac type found for your device`);
+    arpping.searchByMacType(type)
+        .then(hosts => {
+            console.log(`Found ${hosts.length} host(s) with your Mac Type (${type}):\n${JSON.stringify(hosts, null, 4)}`)
+        })
+        .catch(errHandler);
 }
 else if (!tests[input[2]]) console.log(`Invalid command: ${input[2]} \nValid commands:\n- ${Object.keys(tests).join('\n- ')}`);
 else {
