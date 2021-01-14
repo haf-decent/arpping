@@ -32,6 +32,9 @@ switch(osType) {
 * @param {Array} options.interfaceFilters.interface - acceptable interface names (e.g. lo0, en1, wlan0, etc.)
 * @param {Array} options.interfaceFilters.internal - whether network can be internal (hosted by the device running this program) or external
 * @param {Array} options.interfaceFilters.family - IPv4 and/or IPv6 designation
+* @param {Number} options.connectionInterval - time interval (in seconds) for testing device's connection
+* @param {Array} options.onConnect - array of callback functions to be called when a new connection is established
+* @param {Array} options.onDisconnect - array of callback functions to be called when an existing connection is no longer active
 * 
 * @returns {Object} Arpping object
 */
@@ -40,7 +43,10 @@ function Arpping({
     includeEndpoints = false, 
     useCache = true, 
     cacheTimeout = 3600,
-    interfaceFilters = {}
+    interfaceFilters = {},
+    connectionInterval = 600,
+    onConnect = [],
+    onDisconnect = []
 } = {}) {
     if (timeout < 1 || timeout > 60) throw new Error(`Invalid timeout parameter: ${timeout}. Timeout should be between 1 and 60.`);
     this.timeout = parseInt(timeout) || timeout.toFixed(0);
@@ -58,14 +64,18 @@ function Arpping({
         family: [ 'IPv4' ]
     }, interfaceFilters);
     this.myDevice = { os: osType, connection: null };
+
+    this.onConnect = onConnect;
+    this.onDisconnect = onDisconnect;
     this.getConnection(this.interfaceFilters);
+    if (connectionInterval) this.interval = setInterval(() => this.getConnection(this.interfaceFilters), connectionInterval * 1000);
 }
 
 /**
-* Wrapper for `os` module's `networkInterfaces` function
+* Static wrapper for `os` module's `networkInterfaces` function
 * @returns {Object} list of available interfaces organized by interface name
 */
-Arpping.prototype.getNetworkInterfaces = function() {
+Arpping.getNetworkInterfaces = function() {
     return os.networkInterfaces();
 }
 
@@ -78,7 +88,8 @@ Arpping.prototype.getConnection = function({
     internal = [ false ],
     family = [ 'IPv4' ]
 } = {}) {
-    const interfaces = this.getNetworkInterfaces();
+    const wasConnected = !!this.myDevice.connection;
+    const interfaces = Arpping.getNetworkInterfaces();
     for (const [ name, arr ] of Object.entries(interfaces)) {
         if (interfaceName.length && !interfaceName.includes(name)) continue;
         for (const connection of arr) {
@@ -86,10 +97,11 @@ Arpping.prototype.getConnection = function({
             if (family.length && !family.includes(connection.family)) continue;
             this.myDevice.connection = { name, ...connection };
             this.myDevice.type = macLookup(connection.mac);
+            if (!wasConnected) this.onConnect.forEach(callback => callback(this.myDevice.connection));
             return this.myDevice.connection;
         }
     }
-    console.warn(`Valid interface not found. Retrying every __ minutes...?`);
+    if (wasConnected) this.onDisconnect.forEach(callback => callback());
     this.myDevice.connection = null;
 }
 
@@ -98,10 +110,7 @@ Arpping.prototype.getConnection = function({
 * @returns {Array}
 */
 Arpping.prototype._getFullRange = function() {
-    if (!this.myDevice.connection) {
-        console.log(`No connection available`);
-        return [];
-    }
+    if (!this.myDevice.connection) return [];
     const { connection: { address, netmask } } = this.myDevice;
     const block = new Netmask(address, netmask);
     const range = []
@@ -140,6 +149,7 @@ Arpping.prototype.discover = function() {
 * @returns {Promise} Promise object returns an object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 */
 Arpping.prototype.ping = function(range) {
+    if (!this.myDevice.connection) return new Promise((_, reject) => reject(new Error('No connection!')));
     if (!range) {
         range = this._getFullRange();
         if (!range.length) {
@@ -169,6 +179,7 @@ Arpping.prototype.ping = function(range) {
 * @returns {Promise} Promise object returns an object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 */
 Arpping.prototype.arp = function(range = []) {
+    if (!this.myDevice.connection) return new Promise((_, reject) => reject(new Error('No connection!')));
     const arps = range.map(ip => new Promise((resolve, reject) => {
         exec(`arp ${ip}`, (err, stdout) => {
             if (err || stdout.includes('no entry')) return reject(ip);
