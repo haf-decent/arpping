@@ -1,5 +1,5 @@
 const os = require('os');
-const { Netmask } = require('netmask')
+const { Netmask } = require('netmask');
 const { exec } = require('child_process');
 
 const macLookup = require('./macLookup.js');
@@ -52,20 +52,33 @@ function Arpping({
     this.cacheTimeout = cacheTimeout;
     this.cacheUpdate = 0;
 
+    this.interfaceFilters = Object.assign({
+        interface: [ 'lo0', 'en0', 'en1', 'wlan0' ],
+        internal: [ false ],
+        family: [ 'IPv4' ]
+    }, interfaceFilters);
     this.myDevice = { os: osType, connection: null };
-    this._getInterface(interfaceFilters);
+    this.getConnection(this.interfaceFilters);
+}
+
+/**
+* Wrapper for `os` module's `networkInterfaces` function
+* @returns {Object} list of available interfaces organized by interface name
+*/
+Arpping.prototype.getNetworkInterfaces = function() {
+    return os.networkInterfaces();
 }
 
 /**
 * Filter network interfaces to find active internet connections
 * @param {Object} interfaceFilters
 */
-Arpping.prototype._getInterface = function({
-    interface: interfaceName = [ 'lo0', 'en0', 'en1', 'wlan0' ],
+Arpping.prototype.getConnection = function({
+    interface: interfaceName = [ 'lo0', 'en0', 'eth0', 'wlan0' ],
     internal = [ false ],
     family = [ 'IPv4' ]
 } = {}) {
-    const interfaces = os.networkInterfaces();
+    const interfaces = this.getNetworkInterfaces();
     for (const [ name, arr ] of Object.entries(interfaces)) {
         if (interfaceName.length && !interfaceName.includes(name)) continue;
         for (const connection of arr) {
@@ -73,6 +86,7 @@ Arpping.prototype._getInterface = function({
             if (family.length && !family.includes(connection.family)) continue;
             this.myDevice.connection = { name, ...connection };
             this.myDevice.type = macLookup(connection.mac);
+            return this.myDevice.connection;
         }
     }
     console.warn(`Valid interface not found. Retrying every __ minutes...?`);
@@ -130,27 +144,22 @@ Arpping.prototype.ping = function(range) {
         range = this._getFullRange();
         if (!range.length) {
             // suggest testing connection?
+            return new Promise((_, reject) => reject(new Error('No connection!')));
         }
     }
 
-    return new Promise(resolve => {
-        if (!range.length) return resolve({ hosts: [], missing: [] });
-        const hosts = [],
-            missing = [];
-        let checked = 0;
-        range.forEach(ip => {
-            exec(`ping ${flag} ${this.timeout} ${ip}`, (err, stdout) => {
-                checked++;
-                if (err || stdout.includes('100% packet loss')) missing.push(ip);
-                else hosts.push(ip);
-                
-                if (checked === range.length) {
-                    // if all errors, suggest testing connection?
-                    resolve({ hosts, missing });
-                }
-            });
+    const pings = range.map(ip => new Promise((resolve, reject) => {
+        exec(`ping ${flag} ${this.timeout} ${ip}`, (err, stdout) => {
+            if (err || stdout.includes(`100% packet loss`)) return reject(ip);
+            return resolve(ip);
         });
-    });
+    }));
+    return Promise.allSettled(pings)
+        .then(results => results.reduce((ret, { status, value = null, reason: ip = null }) => {
+            if (status === 'fulfilled') ret.hosts.push(value);
+            else ret.missing.push(ip);
+            return ret;
+        }, { hosts: [], missing: [] }));
 }
 
 /**
@@ -160,36 +169,25 @@ Arpping.prototype.ping = function(range) {
 * @returns {Promise} Promise object returns an object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 */
 Arpping.prototype.arp = function(range = []) {
-    return new Promise((resolve, _) => {
-        if (!range.length) return resolve({ hosts: [], missing: [] });
+    const arps = range.map(ip => new Promise((resolve, reject) => {
+        exec(`arp ${ip}`, (err, stdout) => {
+            if (err || stdout.includes('no entry')) return reject(ip);
 
-        const hosts = [],
-            missing = [];
-        let checked = 0;
-        range.forEach(ip => {
-            exec(`arp ${ip}`, (err, stdout) => {
-                checked++;
-                if (err || stdout.includes('no entry')) missing.push(ip);
-                else {
-                    const mac = (osType === 'Linux') ? 
-                        stdout.split('\n')[1].replace(/ +/g, ' ').split(' ')[2]: 
-                        stdout.split(' ')[3];
-                    if (mac.includes('incomplete')) missing.push(ip);
-                    else {
-                        const type = macLookup(mac);
-                        const host = { ip, mac, type };
-                        if (ip === this.myDevice.connection.address) host.isHostDevice = true;
-                        hosts.push(host);
-                    }
-                }
-                
-                if (checked === range.length) {
-                    // if all errors, suggest testing connection?
-                    resolve({ hosts, missing });
-                }
-            });
+            const mac = osType === 'Linux' ?
+                stdout.split('\n')[1].replace(/ +/g, ' ').split(' ')[2]:
+                stdout.split(' ')[3];
+            if (mac.includes('incomplete')) return reject(ip);
+            const host = { ip, mac, type: macLookup(mac) };
+            if (ip === this.myDevice.connection.address) host.isHostDevice = true;
+            resolve(host);
         });
-    });
+    }));
+    return Promise.allSettled(arps)
+        .then(results => results.reduce((ret, { status, value = null, reason: ip = null }) => {
+            if (status === 'fulfilled') ret.hosts.push(value);
+            else ret.missing.push(ip);
+            return ret;
+        }, { hosts: [], missing: [] }));
 }
 
 /**
