@@ -13,17 +13,17 @@ But both node-nmap and libnmap were slow and unreliable, and node-arp only had p
 ## Installation
 Using npm:
 
-`$ npm install -save arpping`
+`$ npm install --save arpping`
 
 ## Usage
 To include in a project file:
 
 ```javascript
 const Arpping = require('arpping');
-var arpping = new Arpping(options);
+const arpping = new Arpping(options);
 ```
 
-The arpping module returns a function that accepts an optional `options` object. Valid parameters include:
+The module returns the Arpping class. The Arpping constructor accepts an optional object argument with the following parameters:
 
 |Parameter |Default |Description |
 |-----------|---------|-------------|
@@ -31,29 +31,115 @@ The arpping module returns a function that accepts an optional `options` object.
 | includeEndpoints | false | Specify if you'd like to include range endpoints (1, 255) in your scans |
 | useCache | true | Specify if you'd like to temporarily cache results for quicker and convenient usage |
 | cacheTimeout | 3600 | Specify the cache's TTL (time to live) in seconds |
+| interfaceFilters | {} | Filters for specifying which network interface to connect to - valid filters are explained below |
+| connectionInterval | 600 | The time interval, in seconds, for testing device's connection |
+| onConnect | [] | An array of callback functions to be called when a new connection is established |
+| onDisconnect | [] | An array of callback functions to be called when an existing connection is no longer active |
 
-### Properties
-Each parameter can be changed dynamically after initialization. In addition, the IP address of the host device is also available as the `myIP` property (once it is found)
 
-### Methods
-The Arpping object has the following Promise-based methods (with properly structured Promise chains):
+### Interface
+Interfaces represent different network types, e.g. Ethernet, WiFi, self-hosted networks (hotspots). Each Arpping instance connects to one (and only one) of these network interfaces and is able to search and discover other devices on that network. Valid filters are arrays that specify valid values for each interface property. They include:
 
-#### findMyInfo
-The findMyInfo method returns the ip, mac address, and mac type (if known) of the computer running the script (which is stored and used to get the LAN network ip range used in other methods)
+|Filter |Default |Description |
+|-----------|---------|-------------|
+| interface | `[ 'lo0', 'en0', 'eth0', 'wlan0' ]` | Allowed network interface names |
+| internal | `[ false ]` | I think this should only ever be `[ false ]` as I don't believe external devices can connect to internal networks, but I left it as an option just in case |
+| family | `[ IPv4 ]` | specify IPv4 and/or IPv6 network protocol |
+
+Note: an empty array means any value is acceptable
+
+If a valid network interface is not found, the Arpping instance will rerun the search every __ min.
+
+### myDevice
+An Arpping instance has the property `myDevice`, which lists the interpreted OS of the host machine (`instance.myDevice.os`).
+
+On initialization, the Arpping instance will try to connect to the first network interface that satisfies the provided filters. If a valid connection is found, `myDevice` will also contain the device `type` based on its mac address (if it exists) and `connection` information, including the IP `address`, `mac` address, `netmask`, and IPv4/IPv6 `family`.
+
+### getNetworkInterfaces Static Method
+The Arpping class has a static method called `getNetworkInterfaces`, which simply wraps the [os module's](https://nodejs.org/api/os.html#os_os_networkinterfaces) `networkInterfaces` function, returning an object of available interfaces.
 ```javascript
 const Arpping = require('arpping');
-var arpping = new Arpping(options);
+const arpping = new Arpping(options);
 
-arpping.findMyInfo()
-    .then(info => console.log(info)) // ex. {"ip": "192.168.0.20", "mac": "01:23:45:67:89:01", "type": "RaspberryPi"}
-    .catch(err => console.log(err));
+arpping.getNetworkInterfaces();
+
+/* Example output
+{
+    lo: [
+        {
+            address: '127.0.0.1',
+            netmask: '255.0.0.0',
+            family: 'IPv4',
+            mac: '00:00:00:00:00:00',
+            internal: true,
+            cidr: '127.0.0.1/8'
+        },
+        {
+            address: '::1',
+            netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+            family: 'IPv6',
+            mac: '00:00:00:00:00:00',
+            scopeid: 0,
+            internal: true,
+            cidr: '::1/128'
+        }
+    ],
+    eth0: [
+        {
+            address: '192.168.1.108',
+            netmask: '255.255.255.0',
+            family: 'IPv4',
+            mac: '01:02:03:0a:0b:0c',
+            internal: false,
+            cidr: '192.168.1.108/24'
+        },
+        {
+            address: 'fe80::a00:27ff:fe4e:66a1',
+            netmask: 'ffff:ffff:ffff:ffff::',
+            family: 'IPv6',
+            mac: '01:02:03:0a:0b:0c',
+            scopeid: 1,
+            internal: false,
+            cidr: 'fe80::a00:27ff:fe4e:66a1/64'
+        }
+    ]
+}
+*/
+```
+
+### Methods
+Any methods that depend on ping/arp (and therefore an active internet/interface connection) will throw an error if no connection is available.
+
+#### getConnection
+This method finds a valid interface connection based on the provided `interfaceFilters`. It sets the `myDevice.connection` property and returns it. It is run on initialization, and on an interval based on the `connectionInterval` parameter. You likely won't need to call this method manually.
+
+Also, depending on the previous and current connection state, the `onConnect` or `onDisconnect` callbacks may fire. The onConnect callbacks will be passed the connection object.
+```javascript
+const Arpping = require('arpping');
+const arpping = new Arpping({
+    onConnect: [ connection => console.log(`Connected: ${JSON.stringify(connection, null, 4)}`) ]
+});
+
+const connection = arpping.getConnection({ interface: [ 'en0' ], internal: [ false ], family: [] });
+
+/* Example output
+Connected: {
+    name: 'en0',
+    address: '192.168.1.108',
+    netmask: '255.255.255.0',
+    family: 'IPv4',
+    mac: '01:02:03:0a:0b:0c',
+    internal: false,
+    cidr: '192.168.1.108/24'
+}
+*/
 ```
 
 #### discover
-The discover method returns an array of hosts found on the local network. Each host entry contains the host's ip and mac address, and can also be assigned a type based on its mac address VendorID. The host entry that represents the computer running the script will have a "isHostDevice" key set with a value of true. By default, the discover scan will reference the host device's IP address to dictate the target range, but you can manually override this by passing a valid IP address.
+The discover method returns an array of hosts found on the local network. Each host entry contains the host's ip and mac address, and can also be assigned a type based on its mac address VendorID. The host entry that represents the machine running the script will have a `isHostDevice` key set with a value of true.
 ```javascript
 const Arpping = require('arpping');
-var arpping = new Arpping(options);
+const arpping = new Arpping(options);
 
 arpping.discover()
     .then(hosts => console.log(JSON.stringify(hosts, null, 4)))
@@ -63,11 +149,13 @@ arpping.discover()
 [
     {
         "ip": "192.168.0.3",
-        "mac": "01:01:01:01:01:01"
+        "mac": "01:01:01:01:01:01",
+        "type": null
     },
     {
         "ip": "192.168.0.12",
-        "mac": "99:01:99:01:99:01"
+        "mac": "99:01:99:01:99:01",
+        "type": null
     },
     {
         "ip": "192.168.0.20",
@@ -86,18 +174,17 @@ The search functionality is broken up into three methods. For each, you may pass
 Searching by ip address runs a discovery scan and filters the result based on an input array of desired ip addresses. The Promise resolves an object with an array of found `hosts` and an array of `missing` ips.
 ```javascript
 const Arpping = require('arpping');
-var arpping = new Arpping(options);
+const arpping = new Arpping(options);
 
-var ipArray = [
+const ipArray = [
     "192.168.0.3",
     "192.168.0.12",
     "192.168.0.24"
 ];
-arpping.searchByIpAddress(ipArray, '192.168.0.1')
+arpping.searchByIpAddress(ipArray)
     .then(({ hosts, missing }) => {
-        var h = hosts.length, m = missing.length;
-        console.log(`${h} out of ${h + m} host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
-        console.log(`${m} out of ${h + m} host(s) not found:\n${missing}`);
+        console.log(`${hosts.length} host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
+        console.log(`${missing.length} host(s) missing:\n${missing}`);
     })
     .catch(err => console.log(err));
 
@@ -106,11 +193,13 @@ arpping.searchByIpAddress(ipArray, '192.168.0.1')
 [
     {
         "ip": "192.168.0.3",
-        "mac": "01:01:01:01:01:01"
+        "mac": "01:01:01:01:01:01",
+        "type": null
     },
     {
         "ip": "192.168.0.12",
-        "mac": "01:01:01:99:99:99"
+        "mac": "01:01:01:99:99:99",
+        "type": null
     }
 ]
 1 out of 3 host(s) not found:
@@ -119,20 +208,19 @@ arpping.searchByIpAddress(ipArray, '192.168.0.1')
 ```
 
 ###### searchByMacAddress
-Searching by mac address functions similarly to the byIpAddress method, with the notable additional ability to search by partial mac addresses (i.e. "01:23:45:67:89:10" which only matches one device vs "01:23:45" which may match multiple devices). Each device found will have a "matched" array specifying the corresponding searched mac address(es). Again, the Promise resolves an object with an array of found `hosts` and an array of `missing` search terms.
+Searching by mac address functions similarly to the `byIpAddress` method, with the notable additional ability to search by partial mac addresses (i.e. "01:23:45:67:89:10" which only matches one device vs "01:23:45" which may match multiple devices). Each device found will have a `matched` array specifying the corresponding searched mac address(es). Again, the Promise resolves an object with an array of found `hosts` and an array of `missing` search terms.
 ```javascript
 const Arpping = require('arpping');
-var arpping = new Arpping(options);
+const arpping = new Arpping(options);
 
-var macArray = [
+const macArray = [
     "01:01:01",
     "01:01:01:99:99:99",
     "7f:54:12"
 ];
 arpping.searchByMacAddress(macArray)
     .then(({ hosts, missing }) => {
-        var h = hosts.length, m = missing.length;
-        console.log(`${h} matching host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
+        console.log(`${hosts.length} matching host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
         console.log(`The following search term(s) returned no results:\n${missing}`);
     })
     .catch(err => console.log(err));
@@ -142,14 +230,16 @@ arpping.searchByMacAddress(macArray)
 [
     {
         "ip": "192.168.0.3",
-        "mac": "01:01:01:01:01:01",
+        "mac": "01:01:01:01:01:01",,
+        "type": null
         "matched": [
             "01:01:01"
         ]
     },
     {
         "ip": "192.168.0.12",
-        "mac": "01:01:01:99:99:99",
+        "mac": "01:01:01:99:99:99",,
+        "type": null
         "matched": [
             "01:01:01",
             "01:01:01:99:99:99"
@@ -165,9 +255,9 @@ The following search term(s) returned no results:
 Searching by mac type returns all devices that are assigned the specified mac type/vendor (note: my mac address lookup table is painfully sparse)
 ```javascript
 const Arpping = require('arpping');
-var arpping = new Arpping(options);
+const arpping = new Arpping(options);
 
-var type = "RaspberryPi";
+const type = 'RaspberryPi';
 arpping.searchByMacType(type)
     .then(hosts => console.log(`${hosts.length} host(s) found with type: ${type}\n${JSON.stringify(hosts, null, 4)}`))
     .catch(err => console.log(err));
@@ -189,9 +279,9 @@ arpping.searchByMacType(type)
 The ping method pings a given array of ip addresses (or the full ip range) and returns an array of `hosts` that respond as well as an array of those `missing` hosts that do not
 ```javascript
 const Arpping = require('arpping');
-var arpping = new Arpping(options);
+const arpping = new Arpping(options);
 
-var ipArray = null; // set to null to scan the full ip range (xxx.xxx.x.2 - 254);
+const ipArray = null; // set to null to scan the full ip range
 arpping.ping(ipArray)
     .then(({ hosts, missing }) => console.log(`${hosts.length} host(s) found:\n${hosts}`))
     .catch(err => console.log(err));
@@ -206,10 +296,10 @@ arpping.ping(ipArray)
 The arp method arps a given array of ip addresses and returns an array of `hosts` that respond as well as an array of `missing` hosts that do not
 ```javascript
 const Arpping = require('arpping');
-var arpping = new Arpping(options);
+const arpping = new Arpping(options);
 
 // must specify an array, unlike ping
-var ipArray = [
+const ipArray = [
     "192.168.0.3", 
     "192.168.0.12", 
     "192.168.0.24"
@@ -226,11 +316,13 @@ arpping.ping(ipArray)
 [
     {
         "ip": "192.168.0.3",
-        "mac": "01:01:01:01:01:01"
+        "mac": "01:01:01:01:01:01",
+        "type": null
     },
     {
         "ip": "192.168.0.12",
-        "mac": "01:01:01:99:99:99"
+        "mac": "01:01:01:99:99:99",
+        "type": null
     }
 ]
 The following ip address(es) returned no results:
