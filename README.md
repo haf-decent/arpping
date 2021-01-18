@@ -49,8 +49,6 @@ Interfaces represent different network types, e.g. Ethernet, WiFi, self-hosted n
 
 Note: an empty array means any value is acceptable
 
-If a valid network interface is not found, the Arpping instance will rerun the search every __ min.
-
 ### myDevice
 An Arpping instance has the property `myDevice`, which lists the interpreted OS of the host machine (`instance.myDevice.os`).
 
