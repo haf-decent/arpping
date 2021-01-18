@@ -35,6 +35,7 @@ The module returns the Arpping class. The Arpping constructor accepts an optiona
 | connectionInterval | 600 | The time interval, in seconds, for testing device's connection |
 | onConnect | [] | An array of callback functions to be called when a new connection is established |
 | onDisconnect | [] | An array of callback functions to be called when an existing connection is no longer active |
+| debug | false | Enable/disable debug logging |
 
 
 ### Interface

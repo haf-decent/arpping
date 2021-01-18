@@ -46,10 +46,12 @@ function Arpping({
     interfaceFilters = {},
     connectionInterval = 600,
     onConnect = [],
-    onDisconnect = []
+    onDisconnect = [],
+    debug = false
 } = {}) {
     if (timeout < 1 || timeout > 60) throw new Error(`Invalid timeout parameter: ${timeout}. Timeout should be between 1 and 60.`);
     this.timeout = parseInt(timeout) || timeout.toFixed(0);
+    this.debug = debug;
     
     this.includeEndpoints = includeEndpoints;
 
@@ -97,11 +99,17 @@ Arpping.prototype.getConnection = function({
             if (family.length && !family.includes(connection.family)) continue;
             this.myDevice.connection = { name, ...connection };
             this.myDevice.type = macLookup(connection.mac);
-            if (!wasConnected) this.onConnect.forEach(callback => callback(this.myDevice.connection));
+            if (!wasConnected) {
+                if (this.debug) console.log(`Interface ${name} connected`);
+                this.onConnect.forEach(callback => callback(this.myDevice.connection));
+            }
             return this.myDevice.connection;
         }
     }
-    if (wasConnected) this.onDisconnect.forEach(callback => callback());
+    if (wasConnected) {
+        if (this.debug) console.log(`Interface ${this.myDevice.connection.name} disconnected`);
+        this.onDisconnect.forEach(callback => callback());
+    }
     this.myDevice.connection = null;
 }
 
@@ -110,7 +118,10 @@ Arpping.prototype.getConnection = function({
 * @returns {Array}
 */
 Arpping.prototype._getFullRange = function() {
-    if (!this.myDevice.connection) return [];
+    if (!this.myDevice.connection) {
+        if (this.debug) console.log(`No connection available`);
+        return [];
+    }
     const { connection: { address, netmask } } = this.myDevice;
     const block = new Netmask(address, netmask);
     const range = []
@@ -153,7 +164,6 @@ Arpping.prototype.ping = function(range) {
     if (!range) {
         range = this._getFullRange();
         if (!range.length) {
-            // suggest testing connection?
             return new Promise((_, reject) => reject(new Error('No connection!')));
         }
     }
