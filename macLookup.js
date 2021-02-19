@@ -1,5 +1,3 @@
-'use strict';
-
 const addresses = {
     "Apple": [
         "2:f:b5",
@@ -33,23 +31,23 @@ const stringAddresses = JSON.stringify(addresses);
 
 /**
 * Cross references provided mac address with lookup table (incomplete)
-* @param {string} mac
-* @param {string} type
-* @return {string}
+* @param {String} mac
+* @param {String} type
+*
+* @returns {String}
 */
-
 function macLookup(mac, type) {
-    var leading = mac.split(':').slice(0, 3).join(':');
+    const leading = mac.split(':').slice(0, 3).join(':');
     
-    if (type && addresses[type]) {
-        if (addresses[type].indexOf(leading) > -1) return type;
+    if (type && addresses[ type ]) {
+        if (addresses[ type ].includes(leading)) return type;
     }
     
-    if (stringAddresses.indexOf(leading) == -1) return false;
-    for (var vendor in addresses) {
-        if (addresses[vendor].indexOf(leading) > -1) return vendor;
+    if (!stringAddresses.includes(leading)) return null;
+    for (const vendor in addresses) {
+        if (addresses[ vendor ].includes(leading)) return vendor;
     }
-    return false;
+    return null;
 }
 
 module.exports = macLookup;
