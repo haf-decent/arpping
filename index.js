@@ -85,6 +85,8 @@ Arpping.getNetworkInterfaces = function() {
 /**
 * Filter network interfaces to find active internet connections
 * @param {Object} interfaceFilters
+* 
+* @returns {Object|null}
 */
 Arpping.prototype.getConnection = function({
     interface: interfaceName = [ 'lo0', 'en0', 'eth0', 'wlan0' ],
@@ -112,6 +114,7 @@ Arpping.prototype.getConnection = function({
         this.onDisconnect.forEach(callback => callback());
     }
     this.myDevice.connection = null;
+    return null;
 }
 
 /**
