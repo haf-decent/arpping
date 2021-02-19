@@ -62,8 +62,13 @@ Arpping.prototype.findMyInfo = function() {
 
             var output = null;
             if (osType == 'Linux') {
-                if (stdout.indexOf('wlan0') == -1) return reject(new Error('No wifi connection'));
-                output = stdout.split('wlan0')[1];
+                if (stdout.indexOf('wlan0') >= 0) {
+                    output = stdout.split('wlan0')[1];
+                } else if (stdout.indexOf('eth0') >= 0) {
+                    output = stdout.split('eth0')[1];
+                } else {
+                    return reject(new Error('No connection'));
+                }
             }
             else {
                 output = stdout.slice(stdout.indexOf('en0'));
