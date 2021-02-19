@@ -1,6 +1,6 @@
 const os = require('os');
 const { Netmask } = require('netmask');
-const { exec } = require('child_process');
+const { execFile } = require('child_process');
 
 const macLookup = require('./macLookup.js');
 
@@ -35,6 +35,7 @@ switch(osType) {
 * @param {Number} options.connectionInterval - time interval (in seconds) for testing device's connection
 * @param {Array} options.onConnect - array of callback functions to be called when a new connection is established
 * @param {Array} options.onDisconnect - array of callback functions to be called when an existing connection is no longer active
+* @param {Array} options.debug - toggle debug logging
 * 
 * @returns {Object} Arpping object
 */
@@ -169,7 +170,7 @@ Arpping.prototype.ping = function(range) {
     }
 
     const pings = range.map(ip => new Promise((resolve, reject) => {
-        exec(`ping ${flag} ${this.timeout} ${ip}`, (err, stdout) => {
+        execFile('ping', [ flag, this.timeout, ip ], (err, stdout) => {
             if (err || stdout.includes(`100% packet loss`)) return reject(ip);
             return resolve(ip);
         });
@@ -191,7 +192,7 @@ Arpping.prototype.ping = function(range) {
 Arpping.prototype.arp = function(range = []) {
     if (!this.myDevice.connection) return new Promise((_, reject) => reject(new Error('No connection!')));
     const arps = range.map(ip => new Promise((resolve, reject) => {
-        exec(`arp ${ip}`, (err, stdout) => {
+        execFile('arp', [ ip ], (err, stdout) => {
             if (err || stdout.includes('no entry')) return reject(ip);
 
             const mac = osType === 'Linux' ?
