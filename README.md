@@ -135,7 +135,7 @@ Connected: {
 ```
 
 #### discover
-The discover method returns an array of hosts found on the local network. Each host entry contains the host's ip and mac address, and can also be assigned a type based on its mac address VendorID. The host entry that represents the machine running the script will have a `isHostDevice` key set with a value of true.
+The discover method returns an array of hosts found on the local network. Each host entry contains the host's name, ip and mac address, and can also be assigned a type based on its mac address VendorID. The host entry that represents the machine running the script will have a `isHostDevice` key set with a value of true.
 ```javascript
 const Arpping = require('arpping');
 const arpping = new Arpping(options);
@@ -147,16 +147,19 @@ arpping.discover()
 /* Example output
 [
     {
+				"name": "ryans-mbp-2",
         "ip": "192.168.0.3",
         "mac": "01:01:01:01:01:01",
         "type": null
     },
     {
+				"name": "?",
         "ip": "192.168.0.12",
         "mac": "99:01:99:01:99:01",
         "type": null
     },
     {
+				"name": "raspi-43c5",
         "ip": "192.168.0.20",
         "mac": "01:23:45:67:89:01",
         "type": "RaspberryPi",
@@ -191,11 +194,13 @@ arpping.searchByIpAddress(ipArray)
 2 out of 3 host(s) found:
 [
     {
+				"name": "?",
         "ip": "192.168.0.3",
         "mac": "01:01:01:01:01:01",
         "type": null
     },
     {
+				"name": "?",
         "ip": "192.168.0.12",
         "mac": "01:01:01:99:99:99",
         "type": null
@@ -228,6 +233,7 @@ arpping.searchByMacAddress(macArray)
 2 matching host(s) found:
 [
     {
+				"name": "?",
         "ip": "192.168.0.3",
         "mac": "01:01:01:01:01:01",,
         "type": null
@@ -236,6 +242,7 @@ arpping.searchByMacAddress(macArray)
         ]
     },
     {
+				"name": "?",
         "ip": "192.168.0.12",
         "mac": "01:01:01:99:99:99",,
         "type": null
@@ -265,6 +272,7 @@ arpping.searchByMacType(type)
 1 host(s) found with type: RaspberryPi
 [
     {
+				"name": "raspi-8008",
         "ip": "192.168.0.20",
         "mac": "01:23:45:67:89:01",
         "type": "RaspberryPi",
@@ -314,11 +322,13 @@ arpping.ping(ipArray)
 2 host(s) found:
 [
     {
+				"name": "?",
         "ip": "192.168.0.3",
         "mac": "01:01:01:01:01:01",
         "type": null
     },
     {
+				"name": "?",
         "ip": "192.168.0.12",
         "mac": "01:01:01:99:99:99",
         "type": null

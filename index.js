@@ -198,11 +198,12 @@ Arpping.prototype.arp = function(range = []) {
         execFile('arp', [ ip ], (err, stdout) => {
             if (err || stdout.includes('no entry')) return reject(ip);
 
+						const name = stdout.split(' ')[0];
             const mac = osType === 'Linux' ?
                 stdout.split('\n')[1].replace(/ +/g, ' ').split(' ')[2]:
                 stdout.split(' ')[3];
             if (mac.includes('incomplete')) return reject(ip);
-            const host = { ip, mac, type: macLookup(mac) };
+            const host = { name, ip, mac, type: macLookup(mac) };
             if (ip === this.myDevice.connection.address) host.isHostDevice = true;
             resolve(host);
         });
