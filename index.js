@@ -221,12 +221,12 @@ Arpping.prototype.arp = async function(range = []) {
 * 
 * @returns {Promise} Promise object returns and object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 */
-Arpping.prototype.searchByIpAddress = async function(ipArray) {
+Arpping.prototype.searchByIpAddress = async function(ipArray, range) {
 	if (!Array.isArray(ipArray) || !ipArray.length) {
 		throw new Error(`Invalid ipArray: ${ipArray}. Search input should be an array of one or more ip strings.`);
 	}
 
-	const hosts = await this.discover();
+	const hosts = await this.discover(range);
 	// define outside of loop
 	const hostIPs = hosts.map(h => h.ip);
 	return {
@@ -241,12 +241,12 @@ Arpping.prototype.searchByIpAddress = async function(ipArray) {
 * 
 * @returns {Promise} Promise object returns and object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 */
-Arpping.prototype.searchByMacAddress = async function(macArray) {
+Arpping.prototype.searchByMacAddress = async function(macArray, range) {
 	if (!Array.isArray(macArray) || !macArray.length) {
 		throw new Error(`Invalid macArray: ${macArray}. Search input should be an array of one or more mac address strings.`);
 	}
 
-	const hosts = await this.discover();
+	const hosts = await this.discover(range);
 	// define outside of loop
 	const check = JSON.stringify(hosts);
 	return {
@@ -267,10 +267,10 @@ Arpping.prototype.searchByMacAddress = async function(macArray) {
 * 
 * @returns {Promise} Promise object returns an array of hosts with a matching mac type
 */
-Arpping.prototype.searchByMacType = async function(macType) {
+Arpping.prototype.searchByMacType = async function(macType, range) {
 	macType = macType.toLowerCase();
 
-	const hosts = await this.discover();
+	const hosts = await this.discover(range);
 	return hosts.filter(h => h.type && h.type.toLowerCase() === macType);
 }
 
