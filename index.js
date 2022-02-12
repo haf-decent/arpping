@@ -4,13 +4,11 @@ const { execFile } = require('child_process');
 
 const macLookup = require('./macLookup.js');
 
-var flag;
+let flag;
 const osType = os.type();
-
+const arpFlag = osType === 'Windows_NT' ? [ '-a' ]: [];
 switch (osType) {
 	case 'Windows_NT':
-		flag = '-w';
-		break;
 	case 'Linux':
 		flag = '-w';
 		break;
@@ -78,7 +76,7 @@ function Arpping({
 * Static wrapper for `os` module's `networkInterfaces` function
 * @returns {Object} list of available interfaces organized by interface name
 */
-Arpping.getNetworkInterfaces = function () {
+Arpping.getNetworkInterfaces = function() {
 	return os.networkInterfaces();
 }
 
@@ -88,7 +86,7 @@ Arpping.getNetworkInterfaces = function () {
 * 
 * @returns {Object|null}
 */
-Arpping.prototype.getConnection = function ({
+Arpping.prototype.getConnection = function({
 	interface: interfaceName = [ 'lo0', 'en0', 'eth0', 'wlan0' ],
 	internal = [ false ],
 	family = [ 'IPv4' ]
@@ -121,14 +119,14 @@ Arpping.prototype.getConnection = function ({
 * Build array of full ip range (xxx.xxx.x.1-255) given example ip address
 * @returns {Array}
 */
-Arpping.prototype._getFullRange = function () {
+Arpping.prototype._getFullRange = function(netmaskOverride = null) {
 	if (!this.myDevice.connection) {
 		if (this.debug) console.log(`No connection available`);
 		return [];
 	}
 	const { connection: { address, netmask } } = this.myDevice;
-	const block = new Netmask(address, netmask);
-	const range = []
+	const block = new Netmask(address, netmaskOverride || netmask);
+	const range = [];
 	if (this.includeEndpoints) {
 		range.push(block.base);
 		block.forEach(ip => range.push(ip));
@@ -143,12 +141,14 @@ Arpping.prototype._getFullRange = function () {
 * Discover all hosts connected to your local network or based on a reference IP address
 * @returns {Promise} Promise object returns an array of discovered hosts
 */
-Arpping.prototype.discover = async function () {
+Arpping.prototype.discover = async function(range) {
 	if (this.useCache && this.cache.length && Date.now() - this.cacheUpdate < this.cacheTimeout * 1000) {
-		return this.cache;
+		return range 
+			? this.cache.filter(({ ip }) => range.includes(ip))
+			: this.cache;
 	}
 
-	const { hosts } = await this.ping().then(({ hosts }) => this.arp(hosts));
+	const { hosts } = await this.ping(range).then(({ hosts }) => this.arp(hosts));
 	this.cache = hosts.slice(0);
 	this.cacheUpdate = Date.now();
 	return hosts;
@@ -160,7 +160,7 @@ Arpping.prototype.discover = async function () {
 * 
 * @returns {Promise} Promise object returns an object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 */
-Arpping.prototype.ping = async function (range) {
+Arpping.prototype.ping = async function(range) {
 	if (!this.myDevice.connection) throw new Error('No connection!');
 	if (!range) {
 		range = this._getFullRange();
@@ -187,11 +187,11 @@ Arpping.prototype.ping = async function (range) {
 * 
 * @returns {Promise} Promise object returns an object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 */
-Arpping.prototype.arp = async function (range = []) {
+Arpping.prototype.arp = async function(range = []) {
 	if (!this.myDevice.connection) throw new Error('No connection!');
 
 	const arps = range.map(ip => new Promise((resolve, reject) => {
-		execFile('arp', [ ip ], (err, stdout) => {
+		execFile('arp', [ ...arpFlag, ip ], (err, stdout) => {
 			if (err || stdout.includes('no entry') || stdout.includes('(incomplete)')) return reject(ip);
 
 			const [ mac = null ] = stdout.match(/([0-9A-Fa-f]{1,2}[:-]){5}([0-9A-Fa-f]{1,2})/ig) || [];
@@ -200,7 +200,7 @@ Arpping.prototype.arp = async function (range = []) {
 			if (ip === this.myDevice.connection.address) host.isHostDevice = true;
 			execFile('nslookup', [ ip ], (err, stdout) => {
 				if (!err) {
-					const [ name = null ] = stdout.match(/ = .*/);
+					const [ name = null ] = stdout.match(/ = .*/) || [];
 					if (!!name) host.name = name.substr(3, name.length - 4);
 				}
 				resolve(host);
@@ -221,7 +221,7 @@ Arpping.prototype.arp = async function (range = []) {
 * 
 * @returns {Promise} Promise object returns and object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 */
-Arpping.prototype.searchByIpAddress = async function (ipArray) {
+Arpping.prototype.searchByIpAddress = async function(ipArray) {
 	if (!Array.isArray(ipArray) || !ipArray.length) {
 		throw new Error(`Invalid ipArray: ${ipArray}. Search input should be an array of one or more ip strings.`);
 	}
@@ -241,7 +241,7 @@ Arpping.prototype.searchByIpAddress = async function (ipArray) {
 * 
 * @returns {Promise} Promise object returns and object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 */
-Arpping.prototype.searchByMacAddress = async function (macArray) {
+Arpping.prototype.searchByMacAddress = async function(macArray) {
 	if (!Array.isArray(macArray) || !macArray.length) {
 		throw new Error(`Invalid macArray: ${macArray}. Search input should be an array of one or more mac address strings.`);
 	}
@@ -267,7 +267,7 @@ Arpping.prototype.searchByMacAddress = async function (macArray) {
 * 
 * @returns {Promise} Promise object returns an array of hosts with a matching mac type
 */
-Arpping.prototype.searchByMacType = async function (macType) {
+Arpping.prototype.searchByMacType = async function(macType) {
 	macType = macType.toLowerCase();
 
 	const hosts = await this.discover();
