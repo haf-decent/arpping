@@ -1,4 +1,4 @@
-const Arpping = require('./index.js');
+const Arpping = require('./dist/index.js');
 const arpping = new Arpping({
 	timeout: 2,
 	includeEndpoints: true,

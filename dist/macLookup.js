@@ -1,4 +1,6 @@
-const addresses = {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+var addresses = {
     "Apple": [
         "2:f:b5",
         "1c:36:bb",
@@ -26,9 +28,8 @@ const addresses = {
     "Roku": [
         "20:f5:43"
     ]
-}
-const stringAddresses = JSON.stringify(addresses);
-
+};
+var stringAddresses = JSON.stringify(addresses);
 /**
 * Cross references provided mac address with lookup table (incomplete)
 * @param {String} mac
@@ -37,17 +38,17 @@ const stringAddresses = JSON.stringify(addresses);
 * @returns {String}
 */
 function macLookup(mac, type) {
-    const leading = mac.split(':').slice(0, 3).join(':');
-    
-    if (type && addresses[ type ]) {
-        if (addresses[ type ].includes(leading)) return type;
+    var leading = mac.split(':').slice(0, 3).join(':');
+    if (type && addresses[type]) {
+        if (addresses[type].includes(leading))
+            return type;
     }
-    
-    if (!stringAddresses.includes(leading)) return null;
-    for (const vendor in addresses) {
-        if (addresses[ vendor ].includes(leading)) return vendor;
+    if (!stringAddresses.includes(leading))
+        return null;
+    for (var vendor in addresses) {
+        if (addresses[vendor].includes(leading))
+            return vendor;
     }
     return null;
 }
-
-module.exports = macLookup;
+exports.default = macLookup;

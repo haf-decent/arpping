@@ -2,9 +2,9 @@ const os = require('os');
 const { Netmask } = require('netmask');
 const { execFile } = require('child_process');
 
-const macLookup = require('./macLookup.js');
+import macLookup from './macLookup';
 
-let flag;
+let flag: string;
 const osType = os.type();
 const arpFlag = osType === 'Windows_NT' ? [ '-a' ]: [];
 switch (osType) {
@@ -19,16 +19,85 @@ switch (osType) {
 		throw new Error(`Unsupported OS: ${osType}`);
 }
 
+type ValueAllSettled<T> = {
+	status: 'fulfilled' | 'rejected',
+	value?: T,
+	reason?: string
+}
+
+type Interface = 'lo0' | 'en0' | 'eth0' | 'wlan0';
+
+type Connection = {
+	name?: Interface,
+	internal?: boolean,
+	family?: 'IPv4' | 'IPv6',
+	address?: string,
+	netmask?: number | string
+}
+
+type Device = {
+	os: 'Windows_NT' | 'Linux' | 'Darwin',
+	connection?: Connection | null,
+	type?: string | null
+}
+
+type InterfaceFilters = {
+	interface?: Interface[],
+	internal?: boolean[],
+	family?: ('IPv4' | 'IPv6')[]
+}
+
+type Host = {
+	ip: string,
+	mac: string,
+	name?: string,
+	type?: string | null,
+	isHostDevice?: boolean,
+	matched?: string[]
+}
+
+type Props = {
+	timeout?: number,
+	includeEndpoints?: boolean,
+	useCache?: boolean,
+	cacheTimeout?: number,
+	interfaceFilters?: InterfaceFilters,
+	connectionInterval?: number,
+	onConnect?: ((connection: Connection) => void)[],
+	onDisconnect?: (() => void)[],
+	debug?: boolean
+}
+
 class Arpping {
-	static osType = osType;
+	static osType: string = osType;
 	
 	/**
 	* Static wrapper for `os` module's `networkInterfaces` function
 	* @returns {object} list of available interfaces organized by interface name
 	*/
 	static getNetworkInterfaces() {
-		return os.networkInterfaces();
+		return os.networkInterfaces() as { [key: string]: {
+			address: string,
+			netmask: string,
+			family: 'IPv4' | 'IPv6',
+			mac: string,
+			internal: boolean,
+			cidr: string
+		}[] };
 	}
+
+	timeout: number;
+	debug: boolean;
+	includeEndpoints: boolean;
+	useCache: boolean;
+	cache: Host[];
+	cacheTimeout: number;
+	cacheUpdate: number;
+	interfaceFilters: InterfaceFilters;
+	myDevice: Device;
+	onConnect: ((connection: Connection) => void)[];
+	onDisconnect: (() => void)[];
+	interval?: NodeJS.Timer;
 
 	/**
 	* Filter network interfaces to find active internet connections
@@ -53,9 +122,9 @@ class Arpping {
 		onConnect = [],
 		onDisconnect = [],
 		debug = false
-	} = {}) {
+	}: Props = {}) {
 		if (timeout < 1 || timeout > 60) throw new Error(`Invalid timeout parameter: ${timeout}. Timeout should be between 1 and 60.`);
-		this.timeout = parseInt(timeout) || timeout.toFixed(0);
+		this.timeout = parseInt(timeout.toString());
 		this.debug = debug;
 
 		this.includeEndpoints = includeEndpoints;
@@ -99,17 +168,20 @@ class Arpping {
 			for (const connection of arr) {
 				if (internal.length && !internal.includes(connection.internal)) continue;
 				if (family.length && !family.includes(connection.family)) continue;
-				this.myDevice.connection = { name, ...connection };
+				this.myDevice.connection = {
+					name: name as Interface,
+					...connection
+				};
 				this.myDevice.type = macLookup(connection.mac);
 				if (!wasConnected) {
 					if (this.debug) console.log(`Interface ${name} connected`);
-					this.onConnect.forEach(callback => callback(this.myDevice.connection));
+					this.onConnect.forEach(callback => callback(this.myDevice.connection as Connection));
 				}
 				return this.myDevice.connection;
 			}
 		}
 		if (wasConnected) {
-			if (this.debug) console.log(`Interface ${this.myDevice.connection.name} disconnected`);
+			if (this.debug) console.log(`Interface ${(this.myDevice.connection as Connection).name} disconnected`);
 			this.onDisconnect.forEach(callback => callback());
 		}
 		this.myDevice.connection = null;
@@ -122,7 +194,7 @@ class Arpping {
 	* 
 	* @returns {string[]}
 	*/
-	_getFullRange(netmaskOverride) {
+	_getFullRange(netmaskOverride?: number | string | undefined) {
 		if (!this.myDevice.connection) {
 			if (this.debug) console.log(`No connection available`);
 			return [];
@@ -132,10 +204,10 @@ class Arpping {
 		const range = [];
 		if (this.includeEndpoints) {
 			range.push(block.base);
-			block.forEach(ip => range.push(ip));
+			block.forEach((ip: string) => range.push(ip));
 			range.push(block.broadcast);
 		}
-		else block.forEach(ip => range.push(ip));
+		else block.forEach((ip: string) => range.push(ip));
 	
 		return range;
 	}
@@ -146,23 +218,26 @@ class Arpping {
 	* 
 	* @returns {Promise<object>} Promise returns an object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 	*/
-	async ping(range) {
+	async ping(range?: string[]) {
 		if (!this.myDevice.connection) throw new Error('No connection!');
 		if (!range) {
 			range = this._getFullRange();
 			if (!range.length) throw new Error('No connection!');
 		}
 	
-		const pings = range.map(ip => new Promise((resolve, reject) => {
-			execFile('ping', [ flag, this.timeout, ip ], (err, stdout) => {
+		const pings: Promise<string>[] = range.map(ip => new Promise((resolve, reject) => {
+			execFile('ping', [ flag, this.timeout, ip ], (err: string, stdout: string) => {
 				if (err || stdout.match(/100(\.0)?% packet loss/g)) return reject(ip);
 				return resolve(ip);
 			});
 		}));
-		const results = await Promise.allSettled(pings);
-		return results.reduce((ret, { status, value = null, reason: ip = null }) => {
-			if (status === 'fulfilled') ret.hosts.push(value);
-			else ret.missing.push(ip);
+		const results = await Promise.allSettled(pings) as ValueAllSettled<string>[];
+		return results.reduce((
+			ret: { hosts: string[], missing: string[]},
+			{ status, value = null, reason: ip = null }
+		) => {
+			if (status === 'fulfilled') ret.hosts.push(value as string);
+			else ret.missing.push(ip as string);
 			return ret;
 		}, { hosts: [], missing: [] });
 	}
@@ -173,18 +248,18 @@ class Arpping {
 	* 
 	* @returns {Promise<object>} Promise returns an object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 	*/
-	async arp(range = []) {
+	async arp(range: string[] = []) {
 		if (!this.myDevice.connection) throw new Error('No connection!');
 	
 		const arps = range.map(ip => new Promise((resolve, reject) => {
-			execFile('arp', [ ...arpFlag, ip ], (err, stdout) => {
+			execFile('arp', [ ...arpFlag, ip ], (err: string, stdout: string) => {
 				if (err || stdout.includes('no entry') || stdout.includes('(incomplete)')) return reject(ip);
 	
 				const [ mac = null ] = stdout.match(/([0-9A-Fa-f]{1,2}[:-]){5}([0-9A-Fa-f]{1,2})/ig) || [];
 				if (!mac) return reject(ip);
-				const host = { ip, mac, type: macLookup(mac) };
-				if (ip === this.myDevice.connection.address) host.isHostDevice = true;
-				execFile('nslookup', [ ip ], (err, stdout) => {
+				const host: Host = { ip, mac, type: macLookup(mac) };
+				if (ip === (this.myDevice.connection as Connection).address) host.isHostDevice = true;
+				execFile('nslookup', [ ip ], (err: string, stdout: string) => {
 					if (!err) {
 						const [ name = null ] = stdout.match(/ = .*/) || [];
 						if (!!name) host.name = name.substr(3, name.length - 4);
@@ -193,10 +268,13 @@ class Arpping {
 				});
 			});
 		}));
-		const results = await Promise.allSettled(arps);
-		return results.reduce((ret, { status, value = null, reason: ip = null }) => {
-			if (status === 'fulfilled') ret.hosts.push(value);
-			else ret.missing.push(ip);
+		const results = await Promise.allSettled(arps) as ValueAllSettled<Host>[];
+		return results.reduce((
+			ret: { hosts: Host[], missing: string[] },
+			{ status, value = null, reason: ip = null }
+		) => {
+			if (status === 'fulfilled') ret.hosts.push(value as Host);
+			else ret.missing.push(ip as string);
 			return ret;
 		}, { hosts: [], missing: [] });
 	}
@@ -207,7 +285,7 @@ class Arpping {
 	* 
 	* @returns {Promise<object[]>} Promise returns an array of discovered host objects
 	*/
-	async discover(range) {
+	async discover(range?: string[]) {
 		if (this.useCache && this.cache.length && Date.now() - this.cacheUpdate < this.cacheTimeout * 1000) {
 			return range 
 				? this.cache.filter(({ ip }) => range.includes(ip))
@@ -226,7 +304,7 @@ class Arpping {
 	* 
 	* @returns {Promise<object>} Promise returns an object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 	*/
-	async searchByIpAddress(ipArray) {
+	async searchByIpAddress(ipArray: string[]) {
 		if (!Array.isArray(ipArray) || !ipArray.length) {
 			throw new Error(`Invalid ipArray: ${ipArray}. Search input should be an array of one or more ip strings.`);
 		}
@@ -247,7 +325,7 @@ class Arpping {
 	* 
 	* @returns {Promise<object>} Promise returns an object of responsive hosts (hosts) and unresponsive ip addresses (missing)
 	*/
-	async searchByMacAddress(macArray, range) {
+	async searchByMacAddress(macArray: string[], range?: string[]) {
 		if (!Array.isArray(macArray) || !macArray.length) {
 			throw new Error(`Invalid macArray: ${macArray}. Search input should be an array of one or more mac address strings.`);
 		}
@@ -274,7 +352,7 @@ class Arpping {
 	* 
 	* @returns {Promise<object[]>} Promise returns an array of hosts with a matching mac type
 	*/
-	async searchByMacType(macType, range) {
+	async searchByMacType(macType: string, range?: string[]) {
 		macType = macType.toLowerCase();
 	
 		const hosts = await this.discover(range);
@@ -283,3 +361,4 @@ class Arpping {
 }
 
 module.exports = Arpping;
+export default Arpping;

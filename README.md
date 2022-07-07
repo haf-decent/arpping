@@ -13,7 +13,9 @@ But both node-nmap and libnmap were slow and unreliable, and node-arp only had p
 ## Installation
 Using npm:
 
-`$ npm install --save arpping`
+```bash
+npm install --save arpping
+```
 
 ## Usage
 To include in a project file:
@@ -58,50 +60,49 @@ On initialization, the Arpping instance will try to connect to the first network
 The Arpping class has a static method called `getNetworkInterfaces`, which simply wraps the [os module's](https://nodejs.org/api/os.html#os_os_networkinterfaces) `networkInterfaces` function, returning an object of available interfaces.
 ```javascript
 const Arpping = require('arpping');
-const arpping = new Arpping(options);
 
-arpping.getNetworkInterfaces();
+Arpping.getNetworkInterfaces();
 
 /* Example output
 {
-    lo: [
-        {
-            address: '127.0.0.1',
-            netmask: '255.0.0.0',
-            family: 'IPv4',
-            mac: '00:00:00:00:00:00',
-            internal: true,
-            cidr: '127.0.0.1/8'
-        },
-        {
-            address: '::1',
-            netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
-            family: 'IPv6',
-            mac: '00:00:00:00:00:00',
-            scopeid: 0,
-            internal: true,
-            cidr: '::1/128'
-        }
-    ],
-    eth0: [
-        {
-            address: '192.168.1.108',
-            netmask: '255.255.255.0',
-            family: 'IPv4',
-            mac: '01:02:03:0a:0b:0c',
-            internal: false,
-            cidr: '192.168.1.108/24'
-        },
-        {
-            address: 'fe80::a00:27ff:fe4e:66a1',
-            netmask: 'ffff:ffff:ffff:ffff::',
-            family: 'IPv6',
-            mac: '01:02:03:0a:0b:0c',
-            scopeid: 1,
-            internal: false,
-            cidr: 'fe80::a00:27ff:fe4e:66a1/64'
-        }
-    ]
+  lo: [
+    {
+      address: '127.0.0.1',
+      netmask: '255.0.0.0',
+      family: 'IPv4',
+      mac: '00:00:00:00:00:00',
+      internal: true,
+      cidr: '127.0.0.1/8'
+    },
+    {
+      address: '::1',
+      netmask: 'ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff',
+      family: 'IPv6',
+      mac: '00:00:00:00:00:00',
+      scopeid: 0,
+      internal: true,
+      cidr: '::1/128'
+    }
+  ],
+  eth0: [
+    {
+      address: '192.168.1.108',
+      netmask: '255.255.255.0',
+      family: 'IPv4',
+      mac: '01:02:03:0a:0b:0c',
+      internal: false,
+      cidr: '192.168.1.108/24'
+    },
+    {
+      address: 'fe80::a00:27ff:fe4e:66a1',
+      netmask: 'ffff:ffff:ffff:ffff::',
+      family: 'IPv6',
+      mac: '01:02:03:0a:0b:0c',
+      scopeid: 1,
+      internal: false,
+      cidr: 'fe80::a00:27ff:fe4e:66a1/64'
+    }
+  ]
 }
 */
 ```
@@ -116,20 +117,24 @@ Also, depending on the previous and current connection state, the `onConnect` or
 ```javascript
 const Arpping = require('arpping');
 const arpping = new Arpping({
-    onConnect: [ connection => console.log(`Connected: ${JSON.stringify(connection, null, 4)}`) ]
+  onConnect: [ connection => console.log(`Connected: ${JSON.stringify(connection, null, 4)}`) ]
 });
 
-const connection = arpping.getConnection({ interface: [ 'en0' ], internal: [ false ], family: [] });
+const connection = arpping.getConnection({
+  interface: [ 'en0' ],
+  internal: [ false ],
+  family: []
+});
 
 /* Example output
 Connected: {
-    name: 'en0',
-    address: '192.168.1.108',
-    netmask: '255.255.255.0',
-    family: 'IPv4',
-    mac: '01:02:03:0a:0b:0c',
-    internal: false,
-    cidr: '192.168.1.108/24'
+  name: 'en0',
+  address: '192.168.1.108',
+  netmask: '255.255.255.0',
+  family: 'IPv4',
+  mac: '01:02:03:0a:0b:0c',
+  internal: false,
+  cidr: '192.168.1.108/24'
 }
 */
 ```
@@ -141,30 +146,30 @@ const Arpping = require('arpping');
 const arpping = new Arpping(options);
 
 arpping.discover()
-    .then(hosts => console.log(JSON.stringify(hosts, null, 4)))
-    .catch(err => console.log(err));
+  .then(hosts => console.log(JSON.stringify(hosts, null, 4)))
+  .catch(err => console.log(err));
 
 /* Example output
 [
-    {
-				"name": "ryans-mbp-2",
-        "ip": "192.168.0.3",
-        "mac": "01:01:01:01:01:01",
-        "type": null
-    },
-    {
-				"name": "?",
-        "ip": "192.168.0.12",
-        "mac": "99:01:99:01:99:01",
-        "type": null
-    },
-    {
-				"name": "raspi-43c5",
-        "ip": "192.168.0.20",
-        "mac": "01:23:45:67:89:01",
-        "type": "RaspberryPi",
-        "isYourDevice": true
-    }
+  {
+    "name": "ryans-mbp-2",
+    "ip": "192.168.0.3",
+    "mac": "01:01:01:01:01:01",
+    "type": null
+  },
+  {
+    "name": "?",
+    "ip": "192.168.0.12",
+    "mac": "99:01:99:01:99:01",
+    "type": null
+  },
+  {
+    "name": "raspi-43c5",
+    "ip": "192.168.0.20",
+    "mac": "01:23:45:67:89:01",
+    "type": "RaspberryPi",
+    "isYourDevice": true
+  }
 ]
 */
 ```
@@ -179,32 +184,32 @@ const Arpping = require('arpping');
 const arpping = new Arpping(options);
 
 const ipArray = [
-    "192.168.0.3",
-    "192.168.0.12",
-    "192.168.0.24"
+  "192.168.0.3",
+  "192.168.0.12",
+  "192.168.0.24"
 ];
 arpping.searchByIpAddress(ipArray)
-    .then(({ hosts, missing }) => {
-        console.log(`${hosts.length} host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
-        console.log(`${missing.length} host(s) missing:\n${missing}`);
-    })
-    .catch(err => console.log(err));
+  .then(({ hosts, missing }) => {
+    console.log(`${hosts.length} host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
+    console.log(`${missing.length} host(s) missing:\n${missing}`);
+  })
+  .catch(err => console.log(err));
 
 /* Example output
 2 out of 3 host(s) found:
 [
-    {
-				"name": "?",
-        "ip": "192.168.0.3",
-        "mac": "01:01:01:01:01:01",
-        "type": null
-    },
-    {
-				"name": "?",
-        "ip": "192.168.0.12",
-        "mac": "01:01:01:99:99:99",
-        "type": null
-    }
+  {
+    "name": "?",
+    "ip": "192.168.0.3",
+    "mac": "01:01:01:01:01:01",
+    "type": null
+  },
+  {
+    "name": "?",
+    "ip": "192.168.0.12",
+    "mac": "01:01:01:99:99:99",
+    "type": null
+  }
 ]
 1 out of 3 host(s) not found:
 ["192.168.0.24"]
@@ -218,39 +223,39 @@ const Arpping = require('arpping');
 const arpping = new Arpping(options);
 
 const macArray = [
-    "01:01:01",
-    "01:01:01:99:99:99",
-    "7f:54:12"
+  "01:01:01",
+  "01:01:01:99:99:99",
+  "7f:54:12"
 ];
 arpping.searchByMacAddress(macArray)
-    .then(({ hosts, missing }) => {
-        console.log(`${hosts.length} matching host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
-        console.log(`The following search term(s) returned no results:\n${missing}`);
-    })
-    .catch(err => console.log(err));
+  .then(({ hosts, missing }) => {
+    console.log(`${hosts.length} matching host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
+    console.log(`The following search term(s) returned no results:\n${missing}`);
+  })
+  .catch(err => console.log(err));
 
 /* Example output
 2 matching host(s) found:
 [
-    {
-				"name": "?",
-        "ip": "192.168.0.3",
-        "mac": "01:01:01:01:01:01",,
-        "type": null
-        "matched": [
-            "01:01:01"
-        ]
-    },
-    {
-				"name": "?",
-        "ip": "192.168.0.12",
-        "mac": "01:01:01:99:99:99",,
-        "type": null
-        "matched": [
-            "01:01:01",
-            "01:01:01:99:99:99"
-        ]
-    }
+  {
+    "name": "?",
+    "ip": "192.168.0.3",
+    "mac": "01:01:01:01:01:01",,
+    "type": null
+    "matched": [
+      "01:01:01"
+    ]
+  },
+  {
+    "name": "?",
+    "ip": "192.168.0.12",
+    "mac": "01:01:01:99:99:99",,
+    "type": null
+    "matched": [
+      "01:01:01",
+      "01:01:01:99:99:99"
+    ]
+  }
 ]
 The following search term(s) returned no results:
 ["7f:54:12"]
@@ -265,19 +270,19 @@ const arpping = new Arpping(options);
 
 const type = 'RaspberryPi';
 arpping.searchByMacType(type)
-    .then(hosts => console.log(`${hosts.length} host(s) found with type: ${type}\n${JSON.stringify(hosts, null, 4)}`))
-    .catch(err => console.log(err));
+  .then(hosts => console.log(`${hosts.length} host(s) found with type: ${type}\n${JSON.stringify(hosts, null, 4)}`))
+  .catch(err => console.log(err));
 
 /* Example output
 1 host(s) found with type: RaspberryPi
 [
-    {
-				"name": "raspi-8008",
-        "ip": "192.168.0.20",
-        "mac": "01:23:45:67:89:01",
-        "type": "RaspberryPi",
-        "isYourDevice": true
-    }
+  {
+    "name": "raspi-8008",
+    "ip": "192.168.0.20",
+    "mac": "01:23:45:67:89:01",
+    "type": "RaspberryPi",
+    "isYourDevice": true
+  }
 ]
 */
 ```
@@ -290,8 +295,8 @@ const arpping = new Arpping(options);
 
 const ipArray = null; // set to null to scan the full ip range
 arpping.ping(ipArray)
-    .then(({ hosts, missing }) => console.log(`${hosts.length} host(s) found:\n${hosts}`))
-    .catch(err => console.log(err));
+  .then(({ hosts, missing }) => console.log(`${hosts.length} host(s) found:\n${hosts}`))
+  .catch(err => console.log(err));
 
 /* Example output
 3 host(s) found:
@@ -307,32 +312,32 @@ const arpping = new Arpping(options);
 
 // must specify an array, unlike ping
 const ipArray = [
-    "192.168.0.3", 
-    "192.168.0.12", 
-    "192.168.0.24"
+  "192.168.0.3", 
+  "192.168.0.12", 
+  "192.168.0.24"
 ];
 arpping.ping(ipArray)
-    .then(({ hosts, missing }) => {
-        console.log(`${hosts.length} matching host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
-        console.log(`The following ip address(es) returned no results:\n${missing}`)
-    })
-    .catch(err => console.log(err));
+  .then(({ hosts, missing }) => {
+    console.log(`${hosts.length} matching host(s) found:\n${JSON.stringify(hosts, null, 4)}`);
+    console.log(`The following ip address(es) returned no results:\n${missing}`)
+  })
+  .catch(err => console.log(err));
 
 /* Example output
 2 host(s) found:
 [
-    {
-				"name": "?",
-        "ip": "192.168.0.3",
-        "mac": "01:01:01:01:01:01",
-        "type": null
-    },
-    {
-				"name": "?",
-        "ip": "192.168.0.12",
-        "mac": "01:01:01:99:99:99",
-        "type": null
-    }
+  {
+    "name": "?",
+    "ip": "192.168.0.3",
+    "mac": "01:01:01:01:01:01",
+    "type": null
+  },
+  {
+    "name": "?",
+    "ip": "192.168.0.12",
+    "mac": "01:01:01:99:99:99",
+    "type": null
+  }
 ]
 The following ip address(es) returned no results:
 ["192.168.0.24"]
@@ -342,9 +347,10 @@ The following ip address(es) returned no results:
 ## Updates
 1. Build out vendorID lookup table, or find some third-party version to include in project
 2. ~~Allow for more customization - custom ip ranges to scan, enable/disable scanning of xxx.xxx.x.1,255, etc.~~
-3. Other stuff I haven't thought of yet
-4. ???
-5. Profit
+3. ~~Typescript~~
+4. Other stuff I haven't thought of yet
+5. ???
+6. Profit
 
 ## Contributing
 I made this module on my own. Any help/feedback is appreciated.
