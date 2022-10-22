@@ -59,12 +59,12 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-var os = require('os');
-var Netmask = require('netmask').Netmask;
-var execFile = require('child_process').execFile;
+var os_1 = __importDefault(require("os"));
+var child_process_1 = require("child_process");
+var netmask_1 = require("netmask");
 var macLookup_1 = __importDefault(require("./macLookup"));
 var flag;
-var osType = os.type();
+var osType = os_1.default.type();
 var arpFlag = osType === 'Windows_NT' ? ['-a'] : [];
 switch (osType) {
     case 'Windows_NT':
@@ -120,7 +120,7 @@ var Arpping = /** @class */ (function () {
     * @returns {object} list of available interfaces organized by interface name
     */
     Arpping.getNetworkInterfaces = function () {
-        return os.networkInterfaces();
+        return os_1.default.networkInterfaces();
     };
     /**
     * Filter network interfaces to find active internet connections
@@ -171,13 +171,19 @@ var Arpping = /** @class */ (function () {
     * @returns {string[]}
     */
     Arpping.prototype._getFullRange = function (netmaskOverride) {
+        var _a, _b;
         if (!this.myDevice.connection) {
             if (this.debug)
                 console.log("No connection available");
             return [];
         }
-        var _a = this.myDevice.connection, address = _a.address, netmask = _a.netmask;
-        var block = new Netmask(address, netmaskOverride || netmask);
+        var _c = this.myDevice.connection, address = _c.address, netmask = _c.netmask;
+        if (!address) {
+            if (this.debug)
+                console.log("No address available");
+            return [];
+        }
+        var block = new netmask_1.Netmask(address, (_b = (_a = (netmaskOverride !== null && netmaskOverride !== void 0 ? netmaskOverride : netmask)) === null || _a === void 0 ? void 0 : _a.toString()) !== null && _b !== void 0 ? _b : '24');
         var range = [];
         if (this.includeEndpoints) {
             range.push(block.base);
@@ -209,7 +215,7 @@ var Arpping = /** @class */ (function () {
                                 throw new Error('No connection!');
                         }
                         pings = range.map(function (ip) { return new Promise(function (resolve, reject) {
-                            execFile('ping', [flag, _this.timeout, ip], function (err, stdout) {
+                            (0, child_process_1.execFile)('ping', [flag, _this.timeout.toString(), ip], function (err, stdout) {
                                 if (err || stdout.match(/100(\.0)?% packet loss/g))
                                     return reject(ip);
                                 return resolve(ip);
@@ -247,7 +253,7 @@ var Arpping = /** @class */ (function () {
                         if (!this.myDevice.connection)
                             throw new Error('No connection!');
                         arps = range.map(function (ip) { return new Promise(function (resolve, reject) {
-                            execFile('arp', __spreadArray(__spreadArray([], arpFlag, true), [ip], false), function (err, stdout) {
+                            (0, child_process_1.execFile)('arp', __spreadArray(__spreadArray([], arpFlag, true), [ip], false), function (err, stdout) {
                                 if (err || stdout.includes('no entry') || stdout.includes('(incomplete)'))
                                     return reject(ip);
                                 var _a = (stdout.match(/([0-9A-Fa-f]{1,2}[:-]){5}([0-9A-Fa-f]{1,2})/ig) || [])[0], mac = _a === void 0 ? null : _a;
@@ -256,7 +262,7 @@ var Arpping = /** @class */ (function () {
                                 var host = { ip: ip, mac: mac, type: (0, macLookup_1.default)(mac) };
                                 if (ip === _this.myDevice.connection.address)
                                     host.isHostDevice = true;
-                                execFile('nslookup', [ip], function (err, stdout) {
+                                (0, child_process_1.execFile)('nslookup', [ip], function (err, stdout) {
                                     if (!err) {
                                         var _a = (stdout.match(/ = .*/) || [])[0], name_2 = _a === void 0 ? null : _a;
                                         if (!!name_2)

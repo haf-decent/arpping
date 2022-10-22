@@ -344,8 +344,18 @@ The following ip address(es) returned no results:
 */
 ```
 
+## Development
+###### Build
+Run `npm run build`.
+
+###### Get the initial MAC address DB
+After install NPM dependencies, the MAC address database will me automatically downloaded. If you need to download the initial set manually, use `npm run get-mac`. Note that this command will not update the MAC database if the files already exist. This is done to avoid pulling the data set unecessarly from the IEEE website. Use the update command below if you need to update the data.
+
+###### Update MAC address DB
+Run `npm run update-mac`. Note that you will need to run the build command after if you wish to have these changes in dist. 
+
 ## Updates
-1. Build out vendorID lookup table, or find some third-party version to include in project
+1. ~~Build out vendorID lookup table, or find some third-party version to include in project~~
 2. ~~Allow for more customization - custom ip ranges to scan, enable/disable scanning of xxx.xxx.x.1,255, etc.~~
 3. ~~Typescript~~
 4. Other stuff I haven't thought of yet
