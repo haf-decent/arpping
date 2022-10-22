@@ -1,51 +1,28 @@
-const addresses: { [key: string]: string[] } = {
-	"Apple": [
-		"2:f:b5",
-		"1c:36:bb",
-		"8c:85:90",
-		"8:66:98",
-		"dc:2b:2a",
-		"34:8:bc",
-		"e0:ac:cb",
-		"dc:a9:04",
-		"dc:a9:4"
-	],
-	"RaspberryPi": [
-		"b8:27:eb"
-	],
-	"ParticlePhoton": [
-		"e0:4f:43"
-	],
-	"Sonos": [
-		"94:9f:3e",
-		"78:28:ca"
-	],
-	"Netgear": [
-		"a0:40:a0"
-	],
-	"Roku": [
-		"20:f5:43"
-	]
-}
-const stringAddresses = JSON.stringify(addresses);
+import macAddresses from './mac.json';
 
 /**
-* Cross references provided mac address with lookup table (incomplete)
+* Cross references provided mac address with lookup table
 * @param {String} mac
-* @param {String} type
 *
-* @returns {String}
+* @returns {String | undefined}
 */
-export default function macLookup(mac: string, type?: string | undefined) {
-	const leading = mac.split(':').slice(0, 3).join(':');
+export default (mac: string) => {
+	const start = mac
+		// Split on MAC separator (:)
+		.split(':')
+		// Get only the 3 first parts (vendor specific)
+		.slice(0, 3)
+		// Add leading 0 (if missing) and make it uppercase
+		.map(part =>
+			(
+				new Array(2 - part.length)
+				.fill('0')
+				.join('') + 
+				part
+			).toUpperCase()
+		)
+		// Join them back together
+		.join(':');
 
-	if (type && addresses[ type ]) {
-		if (addresses[ type ].includes(leading)) return type;
-	}
-
-	if (!stringAddresses.includes(leading)) return null;
-	for (const vendor in addresses) {
-		if (addresses[ vendor ].includes(leading)) return vendor;
-	}
-	return null;
-}
+	return macAddresses[start];
+};

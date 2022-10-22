@@ -18,7 +18,10 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "node test.js example"
+    "test": "node test.js example",
+    "get-mac": "node scripts/mac-db.js init",
+    "update-mac": "node scripts/mac-db.js update",
+    "postinstall": "node scripts/mac-db.js init"
   },
   "keywords": [
     "ping",
