@@ -1,11 +1,13 @@
-const os = require('os');
-const { Netmask } = require('netmask');
-const { execFile } = require('child_process');
+import os from 'os';
+import { execFile, ExecFileException } from 'child_process';
+import { Netmask } from 'netmask';
 
 import macLookup from './macLookup';
 
+type OsType = 'Windows_NT' | 'Linux' | 'Darwin';
+
 let flag: string;
-const osType = os.type();
+const osType = os.type() as OsType;
 const arpFlag = osType === 'Windows_NT' ? [ '-a' ]: [];
 switch (osType) {
 	case 'Windows_NT':
@@ -25,9 +27,9 @@ type ValueAllSettled<T> = {
 	reason?: string
 }
 
-type Interface = 'lo0' | 'en0' | 'eth0' | 'wlan0';
+export type Interface = 'lo0' | 'en0' | 'eth0' | 'wlan0';
 
-type Connection = {
+export type Connection = {
 	name?: Interface,
 	internal?: boolean,
 	family?: 'IPv4' | 'IPv6',
@@ -35,19 +37,19 @@ type Connection = {
 	netmask?: number | string
 }
 
-type Device = {
-	os: 'Windows_NT' | 'Linux' | 'Darwin',
+export type Device = {
+	os: OsType,
 	connection?: Connection | null,
 	type?: string | null
 }
 
-type InterfaceFilters = {
+export type InterfaceFilters = {
 	interface?: Interface[],
 	internal?: boolean[],
 	family?: ('IPv4' | 'IPv6')[]
 }
 
-type Host = {
+export type Host = {
 	ip: string,
 	mac: string,
 	name?: string,
@@ -56,7 +58,7 @@ type Host = {
 	matched?: string[]
 }
 
-type Props = {
+export type Props = {
 	timeout?: number,
 	includeEndpoints?: boolean,
 	useCache?: boolean,
@@ -200,7 +202,11 @@ class Arpping {
 			return [];
 		}
 		const { connection: { address, netmask } } = this.myDevice;
-		const block = new Netmask(address, netmaskOverride || netmask);
+		if (!address) {
+			if (this.debug) console.log(`No address available`);
+			return [];
+		}
+		const block = new Netmask(address, (netmaskOverride ?? netmask)?.toString() ?? '24');
 		const range = [];
 		if (this.includeEndpoints) {
 			range.push(block.base);
@@ -226,7 +232,7 @@ class Arpping {
 		}
 	
 		const pings: Promise<string>[] = range.map(ip => new Promise((resolve, reject) => {
-			execFile('ping', [ flag, this.timeout, ip ], (err: string, stdout: string) => {
+			execFile('ping', [ flag, this.timeout.toString(), ip ], (err: ExecFileException| null, stdout: string) => {
 				if (err || stdout.match(/100(\.0)?% packet loss/g)) return reject(ip);
 				return resolve(ip);
 			});
@@ -252,14 +258,14 @@ class Arpping {
 		if (!this.myDevice.connection) throw new Error('No connection!');
 	
 		const arps = range.map(ip => new Promise((resolve, reject) => {
-			execFile('arp', [ ...arpFlag, ip ], (err: string, stdout: string) => {
+			execFile('arp', [ ...arpFlag, ip ], (err: ExecFileException | null, stdout: string) => {
 				if (err || stdout.includes('no entry') || stdout.includes('(incomplete)')) return reject(ip);
 	
 				const [ mac = null ] = stdout.match(/([0-9A-Fa-f]{1,2}[:-]){5}([0-9A-Fa-f]{1,2})/ig) || [];
 				if (!mac) return reject(ip);
 				const host: Host = { ip, mac, type: macLookup(mac) };
 				if (ip === (this.myDevice.connection as Connection).address) host.isHostDevice = true;
-				execFile('nslookup', [ ip ], (err: string, stdout: string) => {
+				execFile('nslookup', [ ip ], (err: ExecFileException| null, stdout: string) => {
 					if (!err) {
 						const [ name = null ] = stdout.match(/ = .*/) || [];
 						if (!!name) host.name = name.substr(3, name.length - 4);

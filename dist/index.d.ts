@@ -1,23 +1,24 @@
 /// <reference types="node" />
-declare type Interface = 'lo0' | 'en0' | 'eth0' | 'wlan0';
-declare type Connection = {
+declare type OsType = 'Windows_NT' | 'Linux' | 'Darwin';
+export declare type Interface = 'lo0' | 'en0' | 'eth0' | 'wlan0';
+export declare type Connection = {
     name?: Interface;
     internal?: boolean;
     family?: 'IPv4' | 'IPv6';
     address?: string;
     netmask?: number | string;
 };
-declare type Device = {
-    os: 'Windows_NT' | 'Linux' | 'Darwin';
+export declare type Device = {
+    os: OsType;
     connection?: Connection | null;
     type?: string | null;
 };
-declare type InterfaceFilters = {
+export declare type InterfaceFilters = {
     interface?: Interface[];
     internal?: boolean[];
     family?: ('IPv4' | 'IPv6')[];
 };
-declare type Host = {
+export declare type Host = {
     ip: string;
     mac: string;
     name?: string;
@@ -25,7 +26,7 @@ declare type Host = {
     isHostDevice?: boolean;
     matched?: string[];
 };
-declare type Props = {
+export declare type Props = {
     timeout?: number;
     includeEndpoints?: boolean;
     useCache?: boolean;
@@ -98,7 +99,7 @@ declare class Arpping {
     *
     * @returns {string[]}
     */
-    _getFullRange(netmaskOverride?: number | string | undefined): any[];
+    _getFullRange(netmaskOverride?: number | string | undefined): string[];
     /**
     * Ping a range of ip addresses
     * @param {string[]} [range] - array of ip addresses to ping, defaults to full netmask range
